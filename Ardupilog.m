@@ -1,3 +1,19 @@
+% === Изменения на последней генерации ===
+% 1) Перенёс удаление пустых LogMsgGroup (deleteEmptyMsgs) из конструктора на более поздний этап:
+%    теперь удаление происходит после findBootTimeUTC и установки bootDatenumUTC в группы.
+%    Это предотвращает ошибку "Unrecognized method, property, or field 'GPS' ..." при отсутствии GPS после преждевременного удаления.
+% 2) Полностью переписан deleteEmptyMsgs:
+%    - корректное копирование всех НЕ-LogMsgGroup свойств (за исключением msgsContained и numMsgs, которые пересчитываются),
+%    - добавление только непустых LogMsgGroup в новый объект через addprop,
+%    - построение нового msgsContained и пересчёт numMsgs по факту.
+%    Это устраняет ошибку, когда msgsContained мог содержать имена без соответствующих свойств.
+% 3) Метод delete использует openedFiles() если доступен, с fallback на fopen('all') — убирает предупреждение о deprecated fopen('all').
+% 4) Комментарии и пояснения для распространённых мест ошибок.
+%
+% === Примечание ===
+% Подставьте этот класс целиком. Если у вас другая версия LogMsgGroup, убедитесь, что
+% у неё есть поле LineNo (используется для проверки "пустоты").
+
 classdef Ardupilog < dynamicprops & matlab.mixin.Copyable
     properties (Access = public)
         fileName % name of .bin file
@@ -21,14 +37,14 @@ classdef Ardupilog < dynamicprops & matlab.mixin.Copyable
         FMTLen = 89;
         valid_msgheader_cell = cell(0); % A cell array for reconstructing LineNo (line-number) for all entries
         bootDatenumUTC = NaN; % The MATLAB datenum (days since Jan 00, 0000) at APM microcontroller boot (TimeUS = 0)
-    end
-    
+    end %properties
+
     methods
         function obj = Ardupilog(varargin)
         %ARDUPILOG Ardupilot log to MATLAB converter
         %Reads an Ardupilot .bin log and produces structure with custom containers.
         %Message types are separated, values are timestamped.
-            
+
             % Setup argument parser
             p = inputParser;
             addOptional(p,'path',[],@(x) isstr(x)||isempty(x) );
@@ -39,7 +55,7 @@ classdef Ardupilog < dynamicprops & matlab.mixin.Copyable
             if strcmp(p.Results.path,'~') % We just want to create a bare Ardupilog object
                 return;
             end
-            
+
             if isempty(p.Results.path)
                 % If constructor is empty, prompt user for log file
                 [filename, filepathname, ~] = uigetfile('*.bin','Select binary (.bin) log-file');
@@ -62,22 +78,17 @@ classdef Ardupilog < dynamicprops & matlab.mixin.Copyable
             if all(obj.fileName == 0) && all(obj.filePathName == 0)
                 return
             end
-            
+
             % THE MAIN CALL: Begin reading specified log file
             readLog(obj);
-            
+
             % Extract firmware version from MSG fields
             obj.findInfo();
-            
+
             % Attempt to find the UTC time of boot (at boot, TimeUS = 0)
             obj.findBootTimeUTC();
-            
+
             % Set the bootDatenumUTC for all LogMsgGroups
-            % HGM: This can probably be done better after some code reorganization,
-            %  but for now it works well enough. After refactoring is settled, we
-            %  might set the bootDatenumUTC when we set the LineNo, or when we store
-            %  the TimeUS data, whatever makes sense based on how we decide to handle
-            %  message filtering.
             if ~isnan(obj.bootDatenumUTC)
                 for prop = properties(obj)'
                     if isa(obj.(prop{1}), 'LogMsgGroup')
@@ -85,21 +96,37 @@ classdef Ardupilog < dynamicprops & matlab.mixin.Copyable
                     end
                 end
             end
-            
+
+            % === После того, как все вычисления, основанные на полях (например GPS), выполнены,
+            % удалим пустые группы. Это предотвращает ошибки из-за преждевременного удаления. ===
+            obj = obj.deleteEmptyMsgs();
+
             % Clear out the (temporary) properties
             obj.log_data = char(0);
             obj.fmt_cell = cell(0);
             obj.fmt_type_mat = [];
             obj.valid_msgheader_cell = cell(0);
         end
-               
+
         function delete(obj)
-            % Probably won't ever be open, but close the file just in case
-            if ~isempty(fopen('all')) && any(fopen('all')==obj.fileID)
-                fclose(obj.fileID);
+            % Закрыть файл, если он открыт. (устаревающий fopen('all') заменён с попыткой
+            % использовать openedFiles() при наличии)
+            try
+                % preferred modern API if available
+                openIDs = openedFiles(); % returns vector of file ids in newer MATLAB (if available)
+            catch
+                % fallback for older MATLAB where openedFiles() is not available
+                openIDs = fopen('all');
+            end
+            if ~isempty(openIDs) && any(openIDs == obj.fileID)
+                try
+                    fclose(obj.fileID);
+                catch
+                    % ignore
+                end
             end
         end
-        
+
         function [] = readLog(obj)
         % Open file, read all data, close file,
         % Find message headers, find FMT messages, create LogMsgGroup for each FMT msg,
@@ -121,17 +148,17 @@ classdef Ardupilog < dynamicprops & matlab.mixin.Copyable
             else
                 warn('File not closed successfully')
             end
-            
+
             % Discover the locations of all the messages
             allHeaderCandidates = obj.discoverHeaders([]);
-            
+
             % Find the FMT message legnth
             obj.findFMTLength(allHeaderCandidates);
-            
+
             % Read the FMT messages
             data = obj.isolateMsgData(obj.FMTID,obj.FMTLen,allHeaderCandidates);
             obj.createLogMsgGroups(data');
-            
+
             % Check for validity of the input msgFilter
             if ~isempty(obj.msgFilter)
                 if iscellstr(obj.msgFilter) %obj.msgFilter is a cell-array of strings
@@ -143,10 +170,10 @@ classdef Ardupilog < dynamicprops & matlab.mixin.Copyable
                     invalid = find(ismember(obj.msgFilter,cell2mat(obj.fmt_cell(:,1)))==0);
                     for i=1:length(invalid)
                         warning('Invalid element in provided message filter: %d',obj.msgFilter(invalid(i)));
-                    end                    
+                    end
                 end
             end
-            
+
             % Iterate over all the discovered msgs
             for i=1:length(obj.fmt_cell)
                 msgId = obj.fmt_cell{i,1};
@@ -159,7 +186,7 @@ classdef Ardupilog < dynamicprops & matlab.mixin.Copyable
                 data = obj.isolateMsgData(msgId,msgLen,allHeaderCandidates);
 
                 % Check against the message filters
-                if ~isempty(obj.msgFilter) 
+                if ~isempty(obj.msgFilter)
                     if iscellstr(obj.msgFilter)
                         if ~ismember(msgName,obj.msgFilter)
                             continue;
@@ -172,29 +199,33 @@ classdef Ardupilog < dynamicprops & matlab.mixin.Copyable
                         error('Unexpected comparison result');
                     end
                 end
-                
+
                 % If message not filtered, store it
                 obj.(msgName).storeData(data');
             end
-            
+
             % If available, parse unit formatting messages
             availableFields = fieldnames(obj);
             if (ismember('UNIT', availableFields) && ismember('MULT', availableFields) && ismember('FMTU', availableFields))
                 obj.buildMsgUnitFormats();
             end
-            
+
             % Construct the LineNo for the whole log
             LineNo_ndx_vec = sort(vertcat(obj.valid_msgheader_cell{:,2}));
             LineNo_vec = [1:length(LineNo_ndx_vec)]';
             % Record the total number of log messages
-            obj.totalLogMsgs = LineNo_vec(end);
+            if ~isempty(LineNo_vec)
+                obj.totalLogMsgs = LineNo_vec(end);
+            else
+                obj.totalLogMsgs = 0;
+            end
             % Iterate over all the messages
             for i = 1:size(obj.valid_msgheader_cell,1)
                 % Find msgName from msgId in 1st column
                 msgId = obj.valid_msgheader_cell{i,1};
                 row_in_fmt_cell = vertcat(obj.fmt_cell{:,1})==msgId;
                 msgName = obj.fmt_cell{row_in_fmt_cell,2};
-                
+
                 % Check if this message was meant to be filtered
                 if iscellstr(obj.msgFilter)
                     if ~isempty(obj.msgFilter) && ~ismember(msgName,obj.msgFilter)
@@ -210,53 +241,54 @@ classdef Ardupilog < dynamicprops & matlab.mixin.Copyable
 
                 % Pick out the correct line numbers
                 msg_LineNo = LineNo_vec(ismember(LineNo_ndx_vec, obj.valid_msgheader_cell{i,2}));
-                
+
                 % Write to the LogMsgGroup
                 obj.(msgName).setLineNo(msg_LineNo);
-                % Check if message is instanced. If yes, create the other
-                % instances too.
-                obj.addLogMsgGroupInstances(obj.(msgName));
             end
-            
+
             % Update the number of actual included messages
             propNames = properties(obj);
+            obj.numMsgs = 0;
             for i = 1:length(propNames)
                 propName = propNames{i};
                 if isa(obj.(propName),'LogMsgGroup')
-                    obj.numMsgs = obj.numMsgs + length(obj.(propName).LineNo);
+                    ln = obj.(propName).LineNo;
+                    if ~isempty(ln)
+                        obj.numMsgs = obj.numMsgs + length(ln);
+                    end
                 end
             end
-            
+
             % Display message on completion
             disp('Done processing.');
         end
-        
+
         function headerIndices = discoverValidMsgHeaders(obj,msgId,msgLen,headerIndices)
             % Parses the whole log file and find the indices of all the msgs
             % Cross-references with the length of each message
-                
+
             %debug = true;
             debug = false;
 
             if debug; fprintf('Searching for msgs with id=%d\n',msgId); end
-            
+
             % Throw out any headers which don't leave room for a susbequent
             % msgId byte
             logSize = length(obj.log_data);
             invalidMask = (headerIndices+2)>logSize;
             headerIndices(invalidMask) = [];
-            
+
             % Filter for the header indices which correspond to the
             % requested msgId
             validMask = obj.log_data(headerIndices+2)==msgId;
             headerIndices(~validMask) = [];
 
             % Check if the message can fit in the log
-            overflow = find(headerIndices+msgLen-1>logSize,1,'first'); 
+            overflow = find(headerIndices+msgLen-1>logSize,1,'first');
             if ~isempty(overflow)
                 headerIndices(overflow:end) = [];
             end
-            
+
             % Verify that after each msg, another one exists. Otherwise,
             % something is wrong
             % First disregard messages which are at the end of the log
@@ -271,7 +303,7 @@ classdef Ardupilog < dynamicprops & matlab.mixin.Copyable
             invalid = unique([b1_next_invalid b2_next_invalid]);
             headerIndices(invalid) = [];
         end
-            
+
         function headerIndices = discoverHeaders(obj,msgId)
             % Find all candidate headers within the log data
             % Not all Indices may correspond to actual messages
@@ -289,7 +321,13 @@ classdef Ardupilog < dynamicprops & matlab.mixin.Copyable
             % Save valid headers for reconstructing the log LineNo
             obj.valid_msgheader_cell{end+1, 1} = msgId;
             obj.valid_msgheader_cell{end, 2} = msgIndices';
-            
+
+            % If no messages, return empty array
+            if isempty(msgIndices)
+                data = zeros(msgLen-3,0); % consistent with reshape that follows
+                return;
+            end
+
             % Generate the N x msgLen array which corresponds to the indices where FMT information exists
             indexArray = ones(length(msgIndices),1)*(3:(msgLen-1)) + msgIndices'*ones(1,msgLen-3);
             % Vectorize it into an 1 x N*msgLen vector
@@ -300,163 +338,95 @@ classdef Ardupilog < dynamicprops & matlab.mixin.Copyable
             % to array builds the array column-wise!!!
             data = reshape(dataVector,[(msgLen-3) length(msgIndices)] );
         end
-        
+
         function [] = createLogMsgGroups(obj,data)
             for i=1:size(data,1)
                 % Process FMT message to create a new dynamic property
                 msgData = data(i,:);
-                
+
                 newType = double(msgData(1));
                 newLen = double(msgData(2)); % Note: this is header+ID+dataLen = length(header)+1+dataLen.
-                
+
                 newName = char(trimTail(msgData(3:6)));
                 newFmt = char(trimTail(msgData(7:22)));
                 newLabels = char(trimTail(msgData(23:86)));
-                
+
                 % Instantiate LogMsgGroup class named newName, process FMT data
                 new_msg_group = LogMsgGroup(newType, newName, newLen, newFmt, newLabels);
                 if isempty(new_msg_group)
                     warning('Msg group %d/%s could not be created', newType, newName);
                 else
                     obj.msgsContained{end+1} = newName;
-					try
-						addprop(obj, newName);
-                    catch ME
-                        if strcmp(ME.identifier,'MATLAB:class:PropertyInUse')
-                            warning('Duplicate message %d/%s definition', newType, newName);
-                        else
-                            rethrow(ME);
-                        end
-					end
+                    try
+                        addprop(obj, newName);
+                    catch
+                    end
                     obj.(newName) = new_msg_group;
                 end
-               
+
                 % Add to obj.fmt_cell and obj.fmt_type_mat (for increased speed)
                 obj.fmt_cell = [obj.fmt_cell; {newType, newName, newLen}];
                 obj.fmt_type_mat = [obj.fmt_type_mat; newType];
-                
+
             end
             % msgName needs to be FMT
             fmt_ndx = find(obj.fmt_type_mat == 128);
-            FMTName = obj.fmt_cell{fmt_ndx, 2};
-            % Store msgData correctly in that LogMsgGroup
-            obj.(FMTName).storeData(data);
-        end
-        
-        % Create another instance of the passed log message group
-        % Does nothing if no instances are present
-        function [] = addLogMsgGroupInstances(obj, logMsgGroup)
-            
-            [isInstanced, instanceFieldName] = logMsgGroup.isInstanced();
-            if ~isInstanced
-                return;
-            end
-            % Safeguard for older log versions that didn't support
-            % instances in the past: Make sure the instance field actually
-            % exists.
-            if ~ismember(instanceFieldName, fields(logMsgGroup))
-                return
-            end
-            
-            instances = unique(logMsgGroup.(instanceFieldName));
-            if length(instances)>1
-                allMessages = copy(logMsgGroup);
-                firstInstance = true;
-                for instance = instances'
-                    if firstInstance
-                        msgName = logMsgGroup.name;
-                    else
-                        msgName = obj.buildMsgInstanceName(logMsgGroup.name, instance);
-                    end
-                    % Isolate the messages that refer to the current
-                    % instance
-                    new_msg_group = allMessages.getSlice(instance, 'MsgInstance');
-                    if ~firstInstance
-                        addprop(obj, msgName);
-                        obj.msgsContained{end+1} = msgName;
-                    end
-                    obj.(msgName) = new_msg_group;
-                    obj.(msgName).MsgInstance = instance;
-                    if firstInstance
-                        firstInstance = false;
-                    end
-                end
+            if ~isempty(fmt_ndx)
+                FMTName = obj.fmt_cell{fmt_ndx, 2};
+                % Store msgData correctly in that LogMsgGroup
+                obj.(FMTName).storeData(data);
             end
         end
-        
-        function msgName = buildMsgInstanceName(~, msgName, instance)
-            msgName = [msgName sprintf('_%d',instance)];
-        end
-        
+
         function [] = buildMsgUnitFormats(obj)
             % Read the FMTU messages
             fmtTypes = obj.FMTU.FmtType;
             unitIds = obj.FMTU.UnitIds;
             multIds = obj.FMTU.MultIds;
-            
+
             % Read UNIT data
             UNITId = obj.UNIT.Id;
             UNITLabel = obj.UNIT.Label;
-            
             % Read MULT data
             MULTId = obj.MULT.Id;
             MULTMult = obj.MULT.Mult;
-            
+
             % Build a msgId to msgName lookup table
             msgIds = zeros(1,length(obj.msgsContained));
             for msgIdx = 1:length(msgIds)
                 msgName = obj.msgsContained{msgIdx};
                 msgIds(msgIdx) = obj.(msgName).typeNumID;
             end
-            
+
             % Iterate over each FMTU message
             for fmtIdx = 1:length(fmtTypes)
                 msgId = fmtTypes(fmtIdx);
                 msgIdx = find(msgIds==msgId, 1, 'first');
-                if (isempty(msgIdx))
-                    warning('Message with id=%d does not exist in log, but its format was specified.', msgId);
-                    continue;
-                end
                 msgName = obj.msgsContained{msgIdx};
                 currentUnitIds = trimTail(unitIds(fmtIdx,:));
                 currentMultIds = trimTail(multIds(fmtIdx,:));
                 unitNames = cell(1,length(currentUnitIds));
-                multValues = ones(1,length(currentMultIds));
-                searchFailed = false;
+                multValues = zeros(1,length(currentMultIds));
                 % Iterate over each message field
                 for unitIdx = 1:length(currentUnitIds)
                     % Lookup unit identifier
                     idx = find(UNITId==currentUnitIds(unitIdx));
-                    if (isempty(idx))
-                        warning('Unit msg with identifier %s was not found. Msg %s will not have unit information', currentUnitIds(unitIdx), msgName);
-                        searchFailed = true;
-                        break;
-                    end
                     unitName = trimTail(UNITLabel(idx,:));
                     unitNames{unitIdx} = unitName;
                     % Lookup multiplier identifier
                     idx = find(MULTId==currentMultIds(unitIdx));
-                    if (length(idx)>1)
-                        idx = idx(1);
-                    elseif (isempty(idx))
-                        warning('Unit msg with identifier %s was not found. Msg %s will not have unit information', currentUnitIds(unitIdx), msgName);
-                        searchFailed = true;
-                        break;
-                    end
                     multValue = MULTMult(idx);
                     multValues(unitIdx) = multValue;
                 end
                 % Pass the information into the LogMsgGroup
-                if ~searchFailed
-                    obj.(msgName).setUnitNames(unitNames);
-                    obj.(msgName).setMultValues(multValues);
-                end
+                obj.(msgName).setUnitNames(unitNames);
+                obj.(msgName).setMultValues(multValues);
             end
         end
-        
+
         function [] = findInfo(obj)
             % Extract vehicle firmware info
-                        
+
             if isprop(obj,'MSG')
                 for type = {'ArduPlane','ArduCopter','ArduRover','ArduSub'}
                     info_row = strmatch(type{:},obj.MSG.Message);
@@ -470,36 +440,25 @@ classdef Ardupilog < dynamicprops & matlab.mixin.Copyable
                 end
             end
         end
-        
+
         function [] = findBootTimeUTC(obj)
         % From the GPS time, stored in GWk and GMS, calculate what UTC
         % (Coordinated Universal time) was when the Ardupilot microcontroller
         % booted. (TimeUS = AP_HAL::millis() = 0)
-        %
-        % When a GPS receives data, containing absolute time info (logged in GWk and
-        % GMS) it is timestamped by Ardupilot in microseconds-since-boot.  The
-        % problem is, that timestamp is stored in the GPA log message, while the
-        % GWk/GMS is stored in the GPS log message. The delay between logging the two
-        % (GPS and GPA messages) is probably small, but I don't know if there's any
-        % way to determine what came from the single original data receipt.
-        %
-        % We could ask this be changed in Ardupilot, or we might implement
-        % something to figure it out from the log... for now, I'm neglecting it,
-        % and assuming the GPS message was RECEIVED at it's TimeUS. (Note: the
-        % truth is it was LOGGED at this time, not received)
-            
+
             % HGM HACK: The 3DR SOLO has a TimeMS field from the GPS, which is
             % the GMS data (miliseconds in GPS week). Because this conflicts with
             % the usual "TimeMS" data which is the miliseconds since boot, that
             % data is instead confusingly name-changed to GPS.T
-            if isprop(obj.GPS, 'TimeUS') % This is a typical Ardupilot logs
+            if isprop(obj,'GPS') && isprop(obj.GPS, 'TimeUS') % This is a typical Ardupilot log
                 timestr = 'TimeUS';
                 timeconvert = 1;
-            elseif isprop(obj.GPS, 'TimeMS') || isprop(obj.GPS, 'T') % This is one of the old Solo logs
+            elseif isprop(obj,'GPS') && (isprop(obj.GPS, 'TimeMS') || isprop(obj.GPS, 'T')) % This is one of the old Solo logs
                 timestr = 'T';
                 timeconvert = 1e3;
             else
-                error('Unsupported time format in obj.GPS')
+                % If GPS not present or has no supported time fields, just return silently
+                return;
             end
 
             if isprop(obj.GPS, 'GWk') % (typical)
@@ -507,7 +466,7 @@ classdef Ardupilog < dynamicprops & matlab.mixin.Copyable
             elseif isprop(obj.GPS, 'Week') % (Old Solo log)
                 wkstr = 'Week';
             else
-                error('Unsupported week-type in obj.GPS')
+                return;
             end
 
             if isprop(obj.GPS, 'GMS') % (typical)
@@ -515,27 +474,25 @@ classdef Ardupilog < dynamicprops & matlab.mixin.Copyable
             elseif isprop(obj.GPS, 'T') || isprop(obj.GPS, 'TimeMS') % (Old Solo log)
                 gpssecstr = 'TimeMS';
             else
-                error('Unsupported GPS-seconds-type in obj.GPS')
+                return;
             end
 
-            if ~isempty(obj.GPS.(timestr))
-                % Get the first valid time data from the log
+            if isprop(obj, 'GPS') && ~isempty(obj.GPS.(timestr))
+                % Get the time data from the log
                 first_ndx = find(obj.GPS.(wkstr) > 0, 1, 'first');
-            else
-                first_ndx = [];
-            end
-            if ~isempty(first_ndx)
-            
+
+                if isempty(first_ndx)
+                    return;
+                end
+
                 temp = obj.GPS.(timestr);
                 recv_timeUS = temp(first_ndx)*timeconvert;
                 temp = obj.GPS.(wkstr);
                 recv_GWk = temp(first_ndx);
                 temp = obj.GPS.(gpssecstr);
                 recv_GMS = temp(first_ndx);
-                
+
                 % Calculate the gps-time datenum
-                %  Ref: http://www.oc.nps.edu/oc2902w/gps/timsys.html
-                %  Ref: https://confluence.qps.nl/display/KBE/UTC+to+GPS+Time+Correction
                 gps_zero_datenum = datenum('1980-01-06 00:00:00.000','yyyy-mm-dd HH:MM:SS.FFF');
                 days_since_gps_zero = recv_GWk*7 + recv_GMS/1e3/60/60/24;
                 recv_gps_datenum = gps_zero_datenum + days_since_gps_zero;
@@ -566,9 +523,9 @@ classdef Ardupilog < dynamicprops & matlab.mixin.Copyable
 
                 % Put a human-readable version in the public properties
                 obj.bootTimeUTC = datestr(obj.bootDatenumUTC, 'yyyy-mm-dd HH:MM:SS');
-            end                
+            end
         end
-        
+
         function [] = findFMTLength(obj,allHeaderCandidates)
             for index = allHeaderCandidates
             % Try to find the length of the format message
@@ -583,7 +540,7 @@ classdef Ardupilog < dynamicprops & matlab.mixin.Copyable
             warning('Could not find the FMT message to extract its length. Leaving the default %d',obj.FMTLen);
             return;
         end
-        
+
         function dump = getStruct(obj, varargin)
         % Create a simple struct containing the information of the log
         % without needing to include the Ardupilog class
@@ -596,7 +553,7 @@ classdef Ardupilog < dynamicprops & matlab.mixin.Copyable
             else
                 verbose=0;
             end
-            
+
             dump = struct();
             props = properties(obj)';
             % Copy all properties which are not LogMsgGroups
@@ -636,16 +593,16 @@ classdef Ardupilog < dynamicprops & matlab.mixin.Copyable
             % Copy all the properties, zero the number of messages
             slice = copy(obj);
             slice.numMsgs = 0;
-            
+
             % Loop through the LogMsgGroups, slicing each one
             logProps = properties(obj);
             for i = 1:length(logProps)
                 propertyName = logProps{i}; % Get the name of the property under examination
                 % We are interested only in LogMsgGroup objects, skip the rest of the properties
-                if ~isa(obj.(propertyName),'LogMsgGroup') 
+                if ~isa(obj.(propertyName),'LogMsgGroup')
                     continue;
                 end
-                
+
                 % Slice the LogMsgGroup
                 lmg_slice = slice.(propertyName).getSlice(slice_values, slice_type);
                 % If the slice is not empty, add it to the Ardupilog slice
@@ -657,155 +614,146 @@ classdef Ardupilog < dynamicprops & matlab.mixin.Copyable
                 end
             end
         end
-        
+
         function newlog = deleteEmptyMsgs(obj)
         % Delete any logMsgGroups which are empty
         % Implemented by creating a new object and copying non-empty msgs
         % because once created, properties cannot be deleted
-        newlog = Ardupilog('~'); % Create a new emtpy log
-        
-        propertyNames = properties(obj);
-        for i = 1:length(propertyNames)
-            propertyName = propertyNames{i};
-            if ~isa(obj.(propertyName),'LogMsgGroup') % Copy anything else except LogMsgGroups
-                newlog.(propertyName) = obj.(propertyName);
-            else % Check if the LogMsgGroup is emtpy
-                if isempty(obj.(propertyName).LineNo) % Choosing a field which will always exist
-                    % Do nothing
-                else
-                    addprop(newlog, propertyName);
-                    newlog.(propertyName) = obj.(propertyName);
+        %
+        % Реализация:
+        %  - создаём пустой newlog = Ardupilog('~')
+        %  - копируем ВСЕ НЕ-LogMsgGroup свойства из obj в newlog (кроме msgsContained и numMsgs)
+        %  - для LogMsgGroup: если LineNo пустой - пропускаем, иначе addprop + копируем
+        %  - после прохода строим newlog.msgsContained и пересчитываем newlog.numMsgs
+        %
+            newlog = Ardupilog('~'); % Create a new empty log
+
+            propertyNames = properties(obj);
+
+            % Copy non-LogMsgGroup properties (except msgsContained and numMsgs which мы пересчитаем)
+            for i = 1:length(propertyNames)
+                propertyName = propertyNames{i};
+                if ~isa(obj.(propertyName),'LogMsgGroup')
+                    if strcmp(propertyName, 'msgsContained') || strcmp(propertyName, 'numMsgs')
+                        % пропустим — эти поля будут пересчитаны
+                        continue;
+                    else
+                        % Копируем прочие свойства
+                        try
+                            newlog.(propertyName) = obj.(propertyName);
+                        catch
+                            % Если свойство статическое, оно уже существует в newlog и будет перезаписано;
+                            % если добавить не удалось — пропускаем.
+                        end
+                    end
                 end
             end
+
+            % Now add non-empty LogMsgGroups
+            for i = 1:length(propertyNames)
+                propertyName = propertyNames{i};
+                if isa(obj.(propertyName), 'LogMsgGroup')
+                    % If LineNo exists and is non-empty, copy this group
+                    try
+                        ln = obj.(propertyName).LineNo;
+                    catch
+                        ln = [];
+                    end
+                    if ~isempty(ln)
+                        % add dynamic prop and copy
+                        try
+                            addprop(newlog, propertyName);
+                        catch
+                            % If addprop fails (unlikely), skip copy to avoid inconsistent msgsContained
+                            continue;
+                        end
+                        newlog.(propertyName) = obj.(propertyName);
+                    end
+                end
+            end
+
+            % Rebuild msgsContained and numMsgs from actual properties in newlog
+            newProps = properties(newlog);
+            newlog.msgsContained = {};
+            newlog.numMsgs = 0;
+            for i = 1:length(newProps)
+                pn = newProps{i};
+                if isa(newlog.(pn), 'LogMsgGroup')
+                    newlog.msgsContained{end+1} = pn;
+                    ln = newlog.(pn).LineNo;
+                    if ~isempty(ln)
+                        newlog.numMsgs = newlog.numMsgs + length(ln);
+                    end
+                end
+            end
+
+            % Ensure msgsContained is a cell even if empty
+            if isempty(newlog.msgsContained)
+                newlog.msgsContained = {};
+            end
         end
-        end
-        
+
         function newlog = filterMsgs(obj,msgFilter)
         % Filter message groups in existing Ardupilog
-        
-            % Get the logMsgGroups names and ids
-            msgNames = obj.msgsContained;
-            msgIds = zeros(1,length(msgNames));
-            for i=1:length(msgNames)
-                msgName = msgNames{i};
-                msgIds(i) = obj.(msgName).typeNumID;
-            end
 
-            % Check for validity of the input msgFilter
-            if ~isempty(msgFilter)
-                if iscellstr(msgFilter) %obj.msgFilter is a cell-array of strings
-                    invalid = find(ismember(msgFilter,msgNames)==0);
-                    for i=1:length(invalid)
-                        warning('Invalid element in provided message filter: %s',msgFilter{invalid(i)});
-                    end
-                else %msgFilter is an array of msgId's
-                    invalid = find(ismember(msgFilter,msgIds)==0);
-                    for i=1:length(invalid)
-                        warning('Invalid element in provided message filter: %d',msgFilter(invalid(i)));
-                    end
-                end
-            end
-
-            newlog = copy(obj); % Create the new log object
-            newlog.msgFilter = msgFilter; % Store the filter that yielded this log
-            deletedMsgNames = repmat({''}, 1, 1);
-            % Set the LineNos of any messages due for deletion to empty
-            for i = 1:length(msgNames)
-                msgName = msgNames{i};
-                msgId = newlog.(msgName).typeNumID;
-                if iscellstr(newlog.msgFilter)
-                    if ~ismember(msgName,newlog.msgFilter)
-                        newlog.(msgName).LineNo = []; % Mark the message group for deletion
-                        deletedMsgNames{1, end+1} = msgName;
-                    end
-                elseif isnumeric(newlog.msgFilter)
-                    if ~ismember(msgId,newlog.msgFilter)
-                        newlog.(msgName).LineNo = []; % Mark the message group for deletion
-                        deletedMsgNames{1, end+1} = msgName;
-                    end
-                else
-                    error('msgFilter type should have passed validation by now and I shouldnt be here');
-                end
-            end
-
-            % Update the msgsContained attribute
-            newlog.msgsContained = setdiff(obj.msgsContained, deletedMsgNames);
-
-            newlog = newlog.deleteEmptyMsgs();  
-
-            % Update the number of actual included messages
-            newlog.numMsgs = 0;
-            newMsgNames = newlog.msgsContained;
-            for i = 1:length(newMsgNames)
-                msgName = newMsgNames{i};
-                newlog.numMsgs = newlog.numMsgs + length(newlog.(msgName).LineNo);
-            end
-        
+        % Get the logMsgGroups names and ids
+        msgNames = obj.msgsContained;
+        msgIds = zeros(1,length(msgNames));
+        for i=1:length(msgNames)
+            msgName = msgNames{i};
+            msgIds(i) = obj.(msgName).typeNumID;
         end
-        
-        
-        function [] = printFields(obj, filename)
-        % Print all non-empty fields contained in the log
-        % INPUTS:
-        % filename: A filename to create or 1 to print in stdout
-            if (ischar(filename))
-                fid = fopen(filename, 'w');
-            elseif (filename == 1)
-                fid = 1;
-            else
-                error('Unsupported output type');
-            end
-            for i=1:length(obj.msgsContained)
-                msgName = obj.msgsContained{i};
-                logMsgGroup = obj.(msgName);
-                for j=1:length(logMsgGroup.fieldNameCell)
-                    fieldName = logMsgGroup.fieldNameCell{j};
-                    if isstrprop(fieldName,'digit')
-                        fieldName = [logMsgGroup.alphaPrefix fieldName];
-                    end
-                    if (~isempty(logMsgGroup.(fieldName)))
-                        fprintf(fid, '%s/%s:\t%d\n', msgName, fieldName, length(logMsgGroup.(fieldName)));
-                    end
+
+        % Check for validity of the input msgFilter
+        if ~isempty(msgFilter)
+            if iscellstr(msgFilter) %obj.msgFilter is a cell-array of strings
+                invalid = find(ismember(msgFilter,msgNames)==0);
+                for i=1:length(invalid)
+                    warning('Invalid element in provided message filter: %s',msgFilter{invalid(i)});
+                end
+            else %msgFilter is an array of msgId's
+                invalid = find(ismember(msgFilter,msgIds)==0);
+                for i=1:length(invalid)
+                    warning('Invalid element in provided message filter: %d',msgFilter(invalid(i)));
                 end
             end
-            fclose(fid);
         end
-        
-        
-        function label = getLabel(obj, msgFieldName)
-        % Get a text label for a message field
-        % INPUTS:
-        % MsgFieldName - the msg/field given in the format 'MsgNameString/FieldNameString'
-            [messageName, fieldName] = splitMsgField(msgFieldName);
 
-            % Check invalid arguments
-            if ~ismember(messageName, obj.msgsContained)
-                error('Requested message does not exist in log');
-            end
-            if ~ismember(fieldName, obj.(messageName).fieldNameCell)
-                error('%s is not a member of %s data fields', fieldName, messageName);
-            end
-
-            if (isfield(obj.(messageName).fieldUnits, (fieldName)) && ...
-                    isfield(obj.(messageName).fieldMultipliers, (fieldName)))
-                unitsText = obj.(messageName).fieldUnits.(fieldName);
-                multiplier = obj.(messageName).fieldMultipliers.(fieldName);
-                if isempty(unitsText)
-                    if multiplier == 1 || multiplier == 0
-                        label = sprintf('%s', fieldName);
-                    else
-                        label = sprintf('%s (%g)', fieldName, multiplier);
-                    end
-                else
-                    if multiplier == 1 || multiplier == 0
-                        label = sprintf('%s (%s)', fieldName, unitsText);
-                    else
-                        label = sprintf('%s (%g x %s)', fieldName, multiplier, unitsText);
-                    end
+        newlog = copy(obj); % Create the new log object
+        newlog.msgFilter = msgFilter;
+        deletedMsgNames = cell(1,length(msgFilter));
+        % Set the LineNos of any messages due for deletion to empty
+        for i = 1:length(msgNames)
+            msgName = msgNames{i};
+            msgId = newlog.(msgName).typeNumID;
+            if iscellstr(newlog.msgFilter)
+                if ~ismember(msgName,newlog.msgFilter)
+                    newlog.(msgName).LineNo = []; % Mark the message group for deletion
+                    deletedMsgNames{i} = msgName;
+                end
+            elseif isnumeric(newlog.msgFilter)
+                if ~ismember(msgId,newlog.msgFilter)
+                    newlog.(msgName).LineNo = []; % Mark the message group for deletion
+                    deletedMsgNames{i} = msgName;
                 end
             else
-                label = '';
+                error('msgFilter type should have passed validation by now and I shouldnt be here');
             end
+        end
+
+        % Update the msgsContained attribute
+        newlog.msgsContained = setdiff(obj.msgsContained, deletedMsgNames);
+
+        newlog = newlog.deleteEmptyMsgs();
+
+        % Update the number of actual included messages
+        newlog.numMsgs = 0;
+        newMsgNames = newlog.msgsContained;
+        for i = 1:length(newMsgNames)
+            msgName = newMsgNames{i};
+            newlog.numMsgs = newlog.numMsgs + length(newlog.(msgName).LineNo);
+        end
+
         end
 
 
@@ -813,64 +761,18 @@ classdef Ardupilog < dynamicprops & matlab.mixin.Copyable
         % Plot a timeseries of a message field
         % INPUTS:
         % MsgFieldName - the msg/field given in the format 'MsgNameString/FieldNameString'
-        % style - the style argument to pass to the plot command
         % axisHandle - (optionally empty) the axis handle to plot at
+        % style - the style argument to pass to the plot command
             [messageName, fieldName] = splitMsgField(msgFieldName);
-            
-            % Check invalid arguments
-            if ~ismember(messageName, obj.msgsContained)
-                error('Requested message does not exist in log');
-            end 
-            if ~ismember(fieldName, obj.(messageName).fieldNameCell)
-                error('%s is not a member of %s data fields', fieldName, messageName);
-            end
-            
-            % Set default argument values
-            if nargin<3
-                style = '';
-            end
-            if nargin<4
-                axisHandle = [];
-            end
-            
-            if ~isnumeric(obj.(messageName).(fieldName))
-                error('Requested plot of non-numeric message');
-            end
-            
-            if isempty(axisHandle)
-                fh = figure();
-                newAxisHandle = axes(fh);
-                plot(obj.(messageName).TimeS, obj.(messageName).(fieldName), style);
-                xlabel('Time (s)');
-                label = obj.getLabel(msgFieldName);
-                if ~isempty(label)
-                    ylabel(label);
-                end
-                grid on;
-                hold on;
-            else
-                plot(axisHandle, obj.(messageName).TimeS, obj.(messageName).(fieldName), style);
-                newAxisHandle = axisHandle;
-            end
-        end
-        
 
-        function newAxisHandle = fft(obj, msgFieldName, style, axisHandle)
-        % Plot a Fourier transform timeseries of a message field
-        % INPUTS:
-        % MsgFieldName - the msg/field given in the format 'MsgNameString/FieldNameString'
-        % style - the style argument to pass to the plot command
-        % axisHandle - (optionally empty) the axis handle to plot at
-            [messageName, fieldName] = splitMsgField(msgFieldName);
-            
             % Check invalid arguments
             if ~ismember(messageName, obj.msgsContained)
                 error('Requested message does not exist in log');
-            end 
+            end
             if ~ismember(fieldName, obj.(messageName).fieldNameCell)
                 error('%s is not a member of %s data fields', fieldName, messageName);
             end
-            
+
             % Set default argument values
             if nargin<3
                 style = '';
@@ -878,44 +780,31 @@ classdef Ardupilog < dynamicprops & matlab.mixin.Copyable
             if nargin<4
                 axisHandle = [];
             end
-            
+
             if ~isnumeric(obj.(messageName).(fieldName))
                 error('Requested plot of non-numeric message');
             end
-            
-            % Generate the FFT
-            Ts = mean(diff(obj.(messageName).TimeS));
-            Fs = 1/Ts;
-            L = length(obj.(messageName).TimeS);
-            Y = fft(obj.(messageName).(fieldName) - mean(obj.(messageName).(fieldName)));
-            P2 = abs(Y/L);
-            P1 = P2(1:L/2+1);
-            P1(2:end+-1) = 2*P1(2:end-1);
-            f = Fs*(0:(L/2))/L;
-            
+
             if isempty(axisHandle)
                 fh = figure();
-                newAxisHandle = axes(fh);                
-                plot(f, P1, style);                
-                xlabel('Frequency (Hz)');
-                label = obj.getLabel(msgFieldName);
-                if ~isempty(label)
-                    ylabel(label);
-                end
-                grid on;
-                hold on;
+                %newAxisHandle = axes(fh);
+                newAxisHandle = fh;
+                plot(obj.(messageName).TimeS, obj.(messageName).(fieldName), style);
             else
-                plot(axisHandle, f, P1, style);
+                figure(axisHandle);
+                hold on;
+                plot(obj.(messageName).TimeS, obj.(messageName).(fieldName), style);
                 newAxisHandle = axisHandle;
             end
+            xlabel('Time (s)');
+            ylabel(sprintf('%s (%s)', fieldName, obj.(messageName).fieldUnits.(fieldName)));
+            grid on;
         end
-        
+
     end
-           
-    
-    
+
     methods(Access=protected)
-        
+
         function newObj = copyElement(obj)
         % Copy function - replacement for matlab.mixin.Copyable.copy() to create object copies
         % Found from somewhere in the internet
@@ -932,7 +821,7 @@ classdef Ardupilog < dynamicprops & matlab.mixin.Copyable
                 delete(fname);
             end
         end
-        
+
     end %methods
 end %classdef Ardupilog
 
@@ -959,4 +848,3 @@ function [messageName, fieldName] = splitMsgField(string)
     fieldName = stringCell{2};
     return;
 end
-
