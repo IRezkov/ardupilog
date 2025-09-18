@@ -86,6 +86,10 @@ classdef Ardupilog < dynamicprops & matlab.mixin.Copyable
                 end
             end
             
+            % === После того, как все вычисления, основанные на полях (например GPS), выполнены,
+            % удалим пустые группы. Это предотвращает ошибки из-за преждевременного удаления. ===
+            obj = obj.deleteEmptyMsgs();
+
             % Clear out the (temporary) properties
             obj.log_data = char(0);
             obj.fmt_cell = cell(0);
