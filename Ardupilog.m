@@ -37,7 +37,7 @@ classdef Ardupilog < dynamicprops & matlab.mixin.Copyable
         FMTLen = 89;
         valid_msgheader_cell = cell(0); % A cell array for reconstructing LineNo (line-number) for all entries
         bootDatenumUTC = NaN; % The MATLAB datenum (days since Jan 00, 0000) at APM microcontroller boot (TimeUS = 0)
-    end %properties
+    end
 
     methods
         function obj = Ardupilog(varargin)
@@ -89,6 +89,11 @@ classdef Ardupilog < dynamicprops & matlab.mixin.Copyable
             obj.findBootTimeUTC();
 
             % Set the bootDatenumUTC for all LogMsgGroups
+            % HGM: This can probably be done better after some code reorganization,
+            %  but for now it works well enough. After refactoring is settled, we
+            %  might set the bootDatenumUTC when we set the LineNo, or when we store
+            %  the TimeUS data, whatever makes sense based on how we decide to handle
+            %  message filtering.
             if ~isnan(obj.bootDatenumUTC)
                 for prop = properties(obj)'
                     if isa(obj.(prop{1}), 'LogMsgGroup')
@@ -121,8 +126,6 @@ classdef Ardupilog < dynamicprops & matlab.mixin.Copyable
             if ~isempty(openIDs) && any(openIDs == obj.fileID)
                 try
                     fclose(obj.fileID);
-                catch
-                    % ignore
                 end
             end
         end
@@ -244,6 +247,9 @@ classdef Ardupilog < dynamicprops & matlab.mixin.Copyable
 
                 % Write to the LogMsgGroup
                 obj.(msgName).setLineNo(msg_LineNo);
+                % Check if message is instanced. If yes, create the other
+                % instances too.
+                obj.addLogMsgGroupInstances(obj.(msgName));
             end
 
             % Update the number of actual included messages
@@ -359,7 +365,12 @@ classdef Ardupilog < dynamicprops & matlab.mixin.Copyable
                     obj.msgsContained{end+1} = newName;
                     try
                         addprop(obj, newName);
-                    catch
+                    catch ME
+                        if strcmp(ME.identifier,'MATLAB:class:PropertyInUse')
+                            warning('Duplicate message %d/%s definition', newType, newName);
+                        else
+                            rethrow(ME);
+                        end
                     end
                     obj.(newName) = new_msg_group;
                 end
@@ -376,6 +387,50 @@ classdef Ardupilog < dynamicprops & matlab.mixin.Copyable
                 % Store msgData correctly in that LogMsgGroup
                 obj.(FMTName).storeData(data);
             end
+        
+        % Create another instance of the passed log message group
+        % Does nothing if no instances are present
+        function [] = addLogMsgGroupInstances(obj, logMsgGroup)
+            
+            [isInstanced, instanceFieldName] = logMsgGroup.isInstanced();
+            if ~isInstanced
+                return;
+            end
+            % Safeguard for older log versions that didn't support
+            % instances in the past: Make sure the instance field actually
+            % exists.
+            if ~ismember(instanceFieldName, fields(logMsgGroup))
+                return
+            end
+            
+            instances = unique(logMsgGroup.(instanceFieldName));
+            if length(instances)>1
+                allMessages = copy(logMsgGroup);
+                firstInstance = true;
+                for instance = instances'
+                    if firstInstance
+                        msgName = logMsgGroup.name;
+                    else
+                        msgName = obj.buildMsgInstanceName(logMsgGroup.name, instance);
+                    end
+                    % Isolate the messages that refer to the current
+                    % instance
+                    new_msg_group = allMessages.getSlice(instance, 'MsgInstance');
+                    if ~firstInstance
+                        addprop(obj, msgName);
+                        obj.msgsContained{end+1} = msgName;
+                    end
+                    obj.(msgName) = new_msg_group;
+                    obj.(msgName).MsgInstance = instance;
+                    if firstInstance
+                        firstInstance = false;
+                    end
+                end
+            end
+        end
+        
+        function msgName = buildMsgInstanceName(~, msgName, instance)
+            msgName = [msgName sprintf('_%d',instance)];
         end
 
         function [] = buildMsgUnitFormats(obj)
@@ -387,6 +442,7 @@ classdef Ardupilog < dynamicprops & matlab.mixin.Copyable
             % Read UNIT data
             UNITId = obj.UNIT.Id;
             UNITLabel = obj.UNIT.Label;
+            
             % Read MULT data
             MULTId = obj.MULT.Id;
             MULTMult = obj.MULT.Mult;
@@ -402,26 +458,45 @@ classdef Ardupilog < dynamicprops & matlab.mixin.Copyable
             for fmtIdx = 1:length(fmtTypes)
                 msgId = fmtTypes(fmtIdx);
                 msgIdx = find(msgIds==msgId, 1, 'first');
+                if (isempty(msgIdx))
+                    warning('Message with id=%d does not exist in log, but its format was specified.', msgId);
+                    continue;
+                end
                 msgName = obj.msgsContained{msgIdx};
                 currentUnitIds = trimTail(unitIds(fmtIdx,:));
                 currentMultIds = trimTail(multIds(fmtIdx,:));
                 unitNames = cell(1,length(currentUnitIds));
-                multValues = zeros(1,length(currentMultIds));
+                multValues = ones(1,length(currentMultIds));
+                searchFailed = false;
                 % Iterate over each message field
                 for unitIdx = 1:length(currentUnitIds)
                     % Lookup unit identifier
                     idx = find(UNITId==currentUnitIds(unitIdx));
+                    if (isempty(idx))
+                        warning('Unit msg with identifier %s was not found. Msg %s will not have unit information', currentUnitIds(unitIdx), msgName);
+                        searchFailed = true;
+                        break;
+                    end
                     unitName = trimTail(UNITLabel(idx,:));
                     unitNames{unitIdx} = unitName;
                     % Lookup multiplier identifier
                     idx = find(MULTId==currentMultIds(unitIdx));
+                    if (length(idx)>1)
+                        idx = idx(1);
+                    elseif (isempty(idx))
+                        warning('Unit msg with identifier %s was not found. Msg %s will not have unit information', currentUnitIds(unitIdx), msgName);
+                        searchFailed = true;
+                        break;
+                    end
                     multValue = MULTMult(idx);
                     multValues(unitIdx) = multValue;
                 end
                 % Pass the information into the LogMsgGroup
+                if ~searchFailed
                 obj.(msgName).setUnitNames(unitNames);
                 obj.(msgName).setMultValues(multValues);
             end
+        end
         end
 
         function [] = findInfo(obj)
@@ -445,20 +520,31 @@ classdef Ardupilog < dynamicprops & matlab.mixin.Copyable
         % From the GPS time, stored in GWk and GMS, calculate what UTC
         % (Coordinated Universal time) was when the Ardupilot microcontroller
         % booted. (TimeUS = AP_HAL::millis() = 0)
+        %
+        % When a GPS receives data, containing absolute time info (logged in GWk and
+        % GMS) it is timestamped by Ardupilot in microseconds-since-boot.  The
+        % problem is, that timestamp is stored in the GPA log message, while the
+        % GWk/GMS is stored in the GPS log message. The delay between logging the two
+        % (GPS and GPA messages) is probably small, but I don't know if there's any
+        % way to determine what came from the single original data receipt.
+        %
+        % We could ask this be changed in Ardupilot, or we might implement
+        % something to figure it out from the log... for now, I'm neglecting it,
+        % and assuming the GPS message was RECEIVED at it's TimeUS. (Note: the
+        % truth is it was LOGGED at this time, not received)
 
             % HGM HACK: The 3DR SOLO has a TimeMS field from the GPS, which is
             % the GMS data (miliseconds in GPS week). Because this conflicts with
             % the usual "TimeMS" data which is the miliseconds since boot, that
             % data is instead confusingly name-changed to GPS.T
-            if isprop(obj,'GPS') && isprop(obj.GPS, 'TimeUS') % This is a typical Ardupilot log
+            if isprop(obj.GPS, 'TimeUS') % This is a typical Ardupilot logs
                 timestr = 'TimeUS';
                 timeconvert = 1;
-            elseif isprop(obj,'GPS') && (isprop(obj.GPS, 'TimeMS') || isprop(obj.GPS, 'T')) % This is one of the old Solo logs
+            elseif isprop(obj.GPS, 'TimeMS') || isprop(obj.GPS, 'T') % This is one of the old Solo logs
                 timestr = 'T';
                 timeconvert = 1e3;
             else
-                % If GPS not present or has no supported time fields, just return silently
-                return;
+                error('Unsupported time format in obj.GPS')
             end
 
             if isprop(obj.GPS, 'GWk') % (typical)
@@ -466,7 +552,7 @@ classdef Ardupilog < dynamicprops & matlab.mixin.Copyable
             elseif isprop(obj.GPS, 'Week') % (Old Solo log)
                 wkstr = 'Week';
             else
-                return;
+                error('Unsupported week-type in obj.GPS')
             end
 
             if isprop(obj.GPS, 'GMS') % (typical)
@@ -474,16 +560,16 @@ classdef Ardupilog < dynamicprops & matlab.mixin.Copyable
             elseif isprop(obj.GPS, 'T') || isprop(obj.GPS, 'TimeMS') % (Old Solo log)
                 gpssecstr = 'TimeMS';
             else
-                return;
+                error('Unsupported GPS-seconds-type in obj.GPS')
             end
 
-            if isprop(obj, 'GPS') && ~isempty(obj.GPS.(timestr))
-                % Get the time data from the log
+            if ~isempty(obj.GPS.(timestr))
+                % Get the first valid time data from the log
                 first_ndx = find(obj.GPS.(wkstr) > 0, 1, 'first');
-
-                if isempty(first_ndx)
-                    return;
+            else
+                first_ndx = [];
                 end
+            if ~isempty(first_ndx)
 
                 temp = obj.GPS.(timestr);
                 recv_timeUS = temp(first_ndx)*timeconvert;
@@ -493,6 +579,8 @@ classdef Ardupilog < dynamicprops & matlab.mixin.Copyable
                 recv_GMS = temp(first_ndx);
 
                 % Calculate the gps-time datenum
+                %  Ref: http://www.oc.nps.edu/oc2902w/gps/timsys.html
+                %  Ref: https://confluence.qps.nl/display/KBE/UTC+to+GPS+Time+Correction
                 gps_zero_datenum = datenum('1980-01-06 00:00:00.000','yyyy-mm-dd HH:MM:SS.FFF');
                 days_since_gps_zero = recv_GWk*7 + recv_GMS/1e3/60/60/24;
                 recv_gps_datenum = gps_zero_datenum + days_since_gps_zero;
@@ -757,12 +845,77 @@ classdef Ardupilog < dynamicprops & matlab.mixin.Copyable
         end
 
 
+        function [] = printFields(obj, filename)
+        % Print all non-empty fields contained in the log
+        % INPUTS:
+        % filename: A filename to create or 1 to print in stdout
+            if (ischar(filename))
+                fid = fopen(filename, 'w');
+            elseif (filename == 1)
+                fid = 1;
+            else
+                error('Unsupported output type');
+            end
+            for i=1:length(obj.msgsContained)
+                msgName = obj.msgsContained{i};
+                logMsgGroup = obj.(msgName);
+                for j=1:length(logMsgGroup.fieldNameCell)
+                    fieldName = logMsgGroup.fieldNameCell{j};
+                    if isstrprop(fieldName,'digit')
+                        fieldName = [logMsgGroup.alphaPrefix fieldName];
+                    end
+                    if (~isempty(logMsgGroup.(fieldName)))
+                        fprintf(fid, '%s/%s:\t%d\n', msgName, fieldName, length(logMsgGroup.(fieldName)));
+                    end
+                end
+            end
+            fclose(fid);
+        end
+        
+        
+        function label = getLabel(obj, msgFieldName)
+        % Get a text label for a message field
+        % INPUTS:
+        % MsgFieldName - the msg/field given in the format 'MsgNameString/FieldNameString'
+            [messageName, fieldName] = splitMsgField(msgFieldName);
+
+            % Check invalid arguments
+            if ~ismember(messageName, obj.msgsContained)
+                error('Requested message does not exist in log');
+            end
+            if ~ismember(fieldName, obj.(messageName).fieldNameCell)
+                error('%s is not a member of %s data fields', fieldName, messageName);
+            end
+
+            if (isfield(obj.(messageName).fieldUnits, (fieldName)) && ...
+                    isfield(obj.(messageName).fieldMultipliers, (fieldName)))
+                unitsText = obj.(messageName).fieldUnits.(fieldName);
+                multiplier = obj.(messageName).fieldMultipliers.(fieldName);
+                if isempty(unitsText)
+                    if multiplier == 1 || multiplier == 0
+                        label = sprintf('%s', fieldName);
+                    else
+                        label = sprintf('%s (%g)', fieldName, multiplier);
+                    end
+                else
+                    if multiplier == 1 || multiplier == 0
+                        label = sprintf('%s (%s)', fieldName, unitsText);
+                    else
+                        label = sprintf('%s (%g x %s)', fieldName, multiplier, unitsText);
+                    end
+                end
+            else
+                label = '';
+            end
+        end
+
+
         function newAxisHandle = plot(obj, msgFieldName, style, axisHandle)
         % Plot a timeseries of a message field
         % INPUTS:
         % MsgFieldName - the msg/field given in the format 'MsgNameString/FieldNameString'
-        % axisHandle - (optionally empty) the axis handle to plot at
         % style - the style argument to pass to the plot command
+        % axisHandle - (optionally empty) the axis handle to plot at
             [messageName, fieldName] = splitMsgField(msgFieldName);
 
             % Check invalid arguments
@@ -787,22 +940,81 @@ classdef Ardupilog < dynamicprops & matlab.mixin.Copyable
 
             if isempty(axisHandle)
                 fh = figure();
-                %newAxisHandle = axes(fh);
-                newAxisHandle = fh;
+                newAxisHandle = axes(fh);
                 plot(obj.(messageName).TimeS, obj.(messageName).(fieldName), style);
-            else
-                figure(axisHandle);
+                xlabel('Time (s)');
+                label = obj.getLabel(msgFieldName);
+                if ~isempty(label)
+                    ylabel(label);
+                end
+                grid on;
                 hold on;
-                plot(obj.(messageName).TimeS, obj.(messageName).(fieldName), style);
+            else
+                plot(axisHandle, obj.(messageName).TimeS, obj.(messageName).(fieldName), style);
                 newAxisHandle = axisHandle;
             end
-            xlabel('Time (s)');
-            ylabel(sprintf('%s (%s)', fieldName, obj.(messageName).fieldUnits.(fieldName)));
-            grid on;
         end
+        
 
+        function newAxisHandle = fft(obj, msgFieldName, style, axisHandle)
+        % Plot a Fourier transform timeseries of a message field
+        % INPUTS:
+        % MsgFieldName - the msg/field given in the format 'MsgNameString/FieldNameString'
+        % style - the style argument to pass to the plot command
+        % axisHandle - (optionally empty) the axis handle to plot at
+            [messageName, fieldName] = splitMsgField(msgFieldName);
+            
+            % Check invalid arguments
+            if ~ismember(messageName, obj.msgsContained)
+                error('Requested message does not exist in log');
+            end 
+            if ~ismember(fieldName, obj.(messageName).fieldNameCell)
+                error('%s is not a member of %s data fields', fieldName, messageName);
+            end
+            
+            % Set default argument values
+            if nargin<3
+                style = '';
+            end
+            if nargin<4
+                axisHandle = [];
+            end
+            
+            if ~isnumeric(obj.(messageName).(fieldName))
+                error('Requested plot of non-numeric message');
+            end
+            
+            % Generate the FFT
+            Ts = mean(diff(obj.(messageName).TimeS));
+            Fs = 1/Ts;
+            L = length(obj.(messageName).TimeS);
+            Y = fft(obj.(messageName).(fieldName) - mean(obj.(messageName).(fieldName)));
+            P2 = abs(Y/L);
+            P1 = P2(1:L/2+1);
+            P1(2:end+-1) = 2*P1(2:end-1);
+            f = Fs*(0:(L/2))/L;
+            
+            if isempty(axisHandle)
+                fh = figure();
+                newAxisHandle = axes(fh);                
+                plot(f, P1, style);                
+                xlabel('Frequency (Hz)');
+                label = obj.getLabel(msgFieldName);
+                if ~isempty(label)
+                    ylabel(label);
+                end
+            grid on;
+                hold on;
+            else
+                plot(axisHandle, f, P1, style);
+                newAxisHandle = axisHandle;
+        end
     end
 
+    end
+           
+    
+    
     methods(Access=protected)
 
         function newObj = copyElement(obj)
@@ -848,3 +1060,4 @@ function [messageName, fieldName] = splitMsgField(string)
     fieldName = stringCell{2};
     return;
 end
+
