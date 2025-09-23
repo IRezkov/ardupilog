@@ -848,7 +848,7 @@ classdef Ardupilog < dynamicprops & matlab.mixin.Copyable
                 xlabel('Time (s)');
                 label = obj.getLabel(msgFieldName);
                 if ~isempty(label)
-                    ylabel(label);
+                    title(label);
                 end
                 grid on;
                 hold on;
