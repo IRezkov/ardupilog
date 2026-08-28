@@ -341,7 +341,10 @@ classdef Ardupilog < dynamicprops & matlab.mixin.Copyable
                 end
                
                 % Add to obj.fmt_cell and obj.fmt_type_mat (for increased speed)
-                obj.fmt_cell = [obj.fmt_cell; {newType, newName, newLen}];
+                % IMPORTANT: keep the unique message name, otherwise duplicate
+                % FMT records such as SUTS/SUTS_2 collapse back into a single
+                % object and the second layout overwrites the first.
+                obj.fmt_cell = [obj.fmt_cell; {newType, uniqueName, newLen}];
                 obj.fmt_type_mat = [obj.fmt_type_mat; newType];
                 
             end
@@ -690,6 +693,7 @@ classdef Ardupilog < dynamicprops & matlab.mixin.Copyable
         newlog = Ardupilog('~'); % Create a new emtpy log
         
         propertyNames = properties(obj);
+        newlog.msgsContained = {};
         for i = 1:length(propertyNames)
             propertyName = propertyNames{i};
             if ~isa(obj.(propertyName),'LogMsgGroup') % Copy anything else except LogMsgGroups
@@ -700,6 +704,7 @@ classdef Ardupilog < dynamicprops & matlab.mixin.Copyable
                 else
                     addprop(newlog, propertyName);
                     newlog.(propertyName) = obj.(propertyName);
+                    newlog.msgsContained{end+1} = propertyName;
                 end
             end
         end

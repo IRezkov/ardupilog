@@ -56,22 +56,27 @@ classdef LogMsgGroup < dynamicprops & matlab.mixin.Copyable
                 format_string = 'QBBbifiHfBbBBH';
                 obj.fieldNameCell = strsplit('TimeUS,BMSCnt,MinSOC,MaxT,PwrW,ChCur,ChPwr,ChTime,VoltV,SOC,BTmp,BLink,Chg,Faults', ',');
             end
-            % There are two different SUTS layouts in the wild. Keep the
-            % first one as SUTS and the next as SUTS_2, depending on the
-            % message type ID seen in the FMT record.
+            % Python distinguishes the two SUTS layouts by the FMT length:
+            % - 11 fields: SUTS (RPos/LPos/Wind)
+            % - 15 fields: SUTS_2 (Fire/Flood/position fields)
+            % This matches the real log data and avoids zeroed RPos/LPos values.
             if strcmp(type_name, 'SUTS')
-                if type_num == 4
+                if length(format_string) == 11
                     format_string = 'QBBBHIIIfff';
                     obj.fieldNameCell = strsplit('TimeUS,Net,Sock,Link,Fault,State,NoCtl,Cmd,RPos,LPos,Wind', ',');
-                elseif type_num == 245
+                elseif length(format_string) == 15
                     format_string = 'QIIIHBBBBBBBfff';
-                    obj.fieldNameCell = strsplit('TimeUS,State,NoCtl,Cmd,Fault,Net,Sock,Link,FireL,FireR,FloodL,FloodR,RPos,LPos,Wind', ',');
-                else
-                    format_string = 'QBBBBBBBBBBBBBB';
                     obj.fieldNameCell = strsplit('TimeUS,State,NoCtl,Cmd,Fault,Net,Sock,Link,FireL,FireR,FloodL,FloodR,RPos,LPos,Wind', ',');
                 end
             end
 
+            % Python's parser pads truncated field labels with synthetic names
+            % when the FMT-label metadata is shorter than the actual format.
+            if numel(obj.fieldNameCell) < length(format_string)
+                obj.fieldNameCell = [obj.fieldNameCell, arrayfun(@(idx) sprintf('f%d', idx), (numel(obj.fieldNameCell)+1):length(format_string), 'UniformOutput', false)];
+            elseif numel(obj.fieldNameCell) > length(format_string)
+                obj.fieldNameCell = obj.fieldNameCell(1:length(format_string));
+            end
             
             % Verify that format and labels agree
             if length(format_string)~=length(obj.fieldNameCell)
