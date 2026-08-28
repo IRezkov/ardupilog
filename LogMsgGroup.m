@@ -201,6 +201,18 @@ classdef LogMsgGroup < dynamicprops & matlab.mixin.Copyable
                     warning(['Unsupported format character: ',obj.fieldInfo(field_ndx).Description,...
                             ' --- Storing data as uint8 array.']);
                 end
+
+                % Match the Python sentinel handling: values that mean
+                % "no data" in ANKL/ANKR should be stored as NaN instead of
+                % real numbers.
+                if ismember(field_name_string, {'RPM','CurA'})
+                    v = obj.(field_name_string);
+                    sentinelMask = (v == 65535) | (v == 65534) | (abs(v - 16383.75) < 1e-6);
+                    if ~isempty(v)
+                        v(sentinelMask) = NaN;
+                        obj.(field_name_string) = v;
+                    end
+                end
                 
                 columnIndex = columnIndex + fieldLen;
             end
