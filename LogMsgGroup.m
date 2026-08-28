@@ -39,10 +39,44 @@ classdef LogMsgGroup < dynamicprops & matlab.mixin.Copyable
                 obj.fieldNameCell = strsplit(field_names_string,',');
             end
             
+            % RUT messages
+    %             "ANKL": ("QffBHIfffbbbBBBHBf",
+    %          "TimeUS,Target,Gas,Dir,RPM,RunMin,CurA,VoltV,PwrW,MTmp,CTmp,BTmp,SOC,Flags,Link,Faults,Lim,SMax"),
+    % "ANKR": ("QffBHIfffbbbBBBHBf",
+    %          "TimeUS,Target,Gas,Dir,RPM,RunMin,CurA,VoltV,PwrW,MTmp,CTmp,BTmp,SOC,Flags,Link,Faults,Lim,SMax"),
+    % "ANBL": ("QBBbifiHfBbBBH",
+    %          "TimeUS,BMSCnt,MinSOC,MaxT,PwrW,ChCur,ChPwr,ChTime,VoltV,SOC,BTmp,BLink,Chg,Faults"),
+    % "ANBR": ("QBBbifiHfBbBBH",
+    %          "TimeUS,BMSCnt,MinSOC,MaxT,PwrW,ChCur,ChPwr,ChTime,VoltV,SOC,BTmp,BLink,Chg,Faults"),
+            if strcmp(type_name, 'ANKL') || strcmp(type_name, 'ANKR')
+                format_string = 'QffBHIfffbbbBBBHBf';
+                obj.fieldNameCell = strsplit('TimeUS,Target,Gas,Dir,RPM,RunMin,CurA,VoltV,PwrW,MTmp,CTmp,BTmp,SOC,Flags,Link,Faults,Lim,SMax', ',');
+            end
+            if strcmp(type_name, 'ANBL') || strcmp(type_name, 'ANBR')
+                format_string = 'QBBbifiHfBbBBH';
+                obj.fieldNameCell = strsplit('TimeUS,BMSCnt,MinSOC,MaxT,PwrW,ChCur,ChPwr,ChTime,VoltV,SOC,BTmp,BLink,Chg,Faults', ',');
+            end
+            % There are two different SUTS layouts in the wild. Keep the
+            % first one as SUTS and the next as SUTS_2, depending on the
+            % message type ID seen in the FMT record.
+            if strcmp(type_name, 'SUTS')
+                if type_num == 4
+                    format_string = 'QBBBHIIIfff';
+                    obj.fieldNameCell = strsplit('TimeUS,Net,Sock,Link,Fault,State,NoCtl,Cmd,RPos,LPos,Wind', ',');
+                elseif type_num == 245
+                    format_string = 'QIIIHBBBBBBBfff';
+                    obj.fieldNameCell = strsplit('TimeUS,State,NoCtl,Cmd,Fault,Net,Sock,Link,FireL,FireR,FloodL,FloodR,RPos,LPos,Wind', ',');
+                else
+                    format_string = 'QBBBBBBBBBBBBBB';
+                    obj.fieldNameCell = strsplit('TimeUS,State,NoCtl,Cmd,Fault,Net,Sock,Link,FireL,FireR,FloodL,FloodR,RPos,LPos,Wind', ',');
+                end
+            end
+
+            
             % Verify that format and labels agree
             if length(format_string)~=length(obj.fieldNameCell)
                 warning('incompatible data on msg type=%d/%s', type_num, type_name);
-                obj = []; % Clear the instance and return %TODO this is kind of messy
+                % obj = []; % Clear the instance and return %TODO this is kind of messy
                 return
             end
             
@@ -181,28 +215,46 @@ classdef LogMsgGroup < dynamicprops & matlab.mixin.Copyable
         end
         
         function [] = setUnitNames(obj, NamesCell)
-            % Store a string cell array with the unit names
+            % Store a string cell array with the unit names.
+            % If the metadata is shorter than the message fields, fill the missing
+            % entries with empty strings, so the log still parses completely.
             
-            % Validate input
-            if length(obj.fieldNameCell)~=length(NamesCell)
-                error('Wrong input length');
+            if isempty(NamesCell)
+                return;
             end
             
-            for fieldIdx=1:length(NamesCell)
+            fieldCount = length(obj.fieldNameCell);
+            if length(NamesCell) > fieldCount
+                warning('Truncating unit metadata for %s: got %d entries but only %d fields are defined.', obj.name, length(NamesCell), fieldCount);
+                NamesCell = NamesCell(1:fieldCount);
+            elseif length(NamesCell) < fieldCount
+                NamesCell = [NamesCell, repmat({''}, 1, fieldCount-length(NamesCell))];
+            end
+            
+            for fieldIdx=1:fieldCount
                 fieldName = obj.sanitizeFieldName(obj.fieldNameCell{fieldIdx});
                 obj.fieldUnits.(fieldName) = NamesCell{fieldIdx};
             end
         end
         
         function [] = setMultValues(obj, MultArray)
-            % Store an array containing the field value multipliers
+            % Store an array containing the field value multipliers.
+            % If the metadata is shorter than the message fields, fill the missing
+            % entries with 1 so the remaining fields behave like unscaled values.
             
-            % Validate input
-            if length(obj.fieldNameCell)~=length(MultArray)
-                error('Wrong input length');
+            if isempty(MultArray)
+                return;
             end
             
-            for fieldIdx=1:length(MultArray)
+            fieldCount = length(obj.fieldNameCell);
+            if length(MultArray) > fieldCount
+                warning('Truncating multiplier metadata for %s: got %d entries but only %d fields are defined.', obj.name, length(MultArray), fieldCount);
+                MultArray = MultArray(1:fieldCount);
+            elseif length(MultArray) < fieldCount
+                MultArray = [MultArray, ones(1, fieldCount-length(MultArray))];
+            end
+            
+            for fieldIdx=1:fieldCount
                 fieldName = obj.sanitizeFieldName(obj.fieldNameCell{fieldIdx});
                 obj.fieldMultipliers.(fieldName) = MultArray(fieldIdx);
             end

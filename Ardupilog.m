@@ -99,7 +99,7 @@ classdef Ardupilog < dynamicprops & matlab.mixin.Copyable
                
         function delete(obj)
             % Probably won't ever be open, but close the file just in case
-            if ~isempty(fopen('all')) && any(fopen('all')==obj.fileID)
+            if ~isempty(openedFiles) && any(openedFiles==obj.fileID)
                 fclose(obj.fileID);
             end
         end
@@ -322,17 +322,22 @@ classdef Ardupilog < dynamicprops & matlab.mixin.Copyable
                 if isempty(new_msg_group)
                     warning('Msg group %d/%s could not be created', newType, newName);
                 else
-                    obj.msgsContained{end+1} = newName;
-					try
-						addprop(obj, newName);
-                    catch ME
-                        if strcmp(ME.identifier,'MATLAB:class:PropertyInUse')
-                            warning('Duplicate message %d/%s definition', newType, newName);
-                        else
-                            rethrow(ME);
+                    uniqueName = newName;
+                    if ismember(uniqueName, obj.msgsContained) || isprop(obj, uniqueName)
+                        suffix = 2;
+                        while ismember([newName '_' num2str(suffix)], obj.msgsContained) || isprop(obj, [newName '_' num2str(suffix)])
+                            suffix = suffix + 1;
                         end
-					end
-                    obj.(newName) = new_msg_group;
+                        uniqueName = [newName '_' num2str(suffix)];
+                        warning('Duplicate message %d/%s definition; using %s instead.', newType, newName, uniqueName);
+                    end
+                    obj.msgsContained{end+1} = uniqueName;
+                    try
+                        addprop(obj, uniqueName);
+                    catch ME
+                        rethrow(ME);
+                    end
+                    obj.(uniqueName) = new_msg_group;
                 end
                
                 % Add to obj.fmt_cell and obj.fmt_type_mat (for increased speed)
@@ -424,37 +429,53 @@ classdef Ardupilog < dynamicprops & matlab.mixin.Copyable
                 msgName = obj.msgsContained{msgIdx};
                 currentUnitIds = trimTail(unitIds(fmtIdx,:));
                 currentMultIds = trimTail(multIds(fmtIdx,:));
-                unitNames = cell(1,length(currentUnitIds));
-                multValues = ones(1,length(currentMultIds));
-                searchFailed = false;
-                % Iterate over each message field
-                for unitIdx = 1:length(currentUnitIds)
+                fieldCount = length(obj.(msgName).fieldNameCell);
+                if isempty(currentUnitIds)
+                    currentUnitIds = zeros(1,0);
+                end
+                if isempty(currentMultIds)
+                    currentMultIds = zeros(1,0);
+                end
+                if length(currentUnitIds) > fieldCount
+                    warning('Message %s declares %d unit IDs but has %d fields; truncating extra entries.', msgName, length(currentUnitIds), fieldCount);
+                    currentUnitIds = currentUnitIds(1:fieldCount);
+                end
+                if length(currentMultIds) > fieldCount
+                    warning('Message %s declares %d multiplier IDs but has %d fields; truncating extra entries.', msgName, length(currentMultIds), fieldCount);
+                    currentMultIds = currentMultIds(1:fieldCount);
+                end
+                if length(currentUnitIds) < fieldCount || length(currentMultIds) < fieldCount
+                    warning('Message %s has incomplete UNIT/MULT metadata (%d unit IDs, %d multiplier IDs for %d fields); filling the rest with defaults.', msgName, length(currentUnitIds), length(currentMultIds), fieldCount);
+                end
+
+                unitNames = repmat({''}, 1, fieldCount);
+                multValues = ones(1, fieldCount);
+                % Iterate over each available message field
+                for unitIdx = 1:min(length(currentUnitIds), fieldCount)
                     % Lookup unit identifier
                     idx = find(UNITId==currentUnitIds(unitIdx));
                     if (isempty(idx))
-                        warning('Unit msg with identifier %s was not found. Msg %s will not have unit information', currentUnitIds(unitIdx), msgName);
-                        searchFailed = true;
-                        break;
+                        warning('Unit msg with identifier %s was not found. Msg %s will keep the default unit label.', currentUnitIds(unitIdx), msgName);
+                        continue;
                     end
                     unitName = trimTail(UNITLabel(idx,:));
                     unitNames{unitIdx} = unitName;
+
                     % Lookup multiplier identifier
-                    idx = find(MULTId==currentMultIds(unitIdx));
-                    if (length(idx)>1)
-                        idx = idx(1);
-                    elseif (isempty(idx))
-                        warning('Unit msg with identifier %s was not found. Msg %s will not have unit information', currentUnitIds(unitIdx), msgName);
-                        searchFailed = true;
-                        break;
+                    if unitIdx <= length(currentMultIds)
+                        idx = find(MULTId==currentMultIds(unitIdx));
+                        if (length(idx)>1)
+                            idx = idx(1);
+                        elseif (~isempty(idx))
+                            multValues(unitIdx) = MULTMult(idx);
+                        else
+                            warning('Multiplier msg with identifier %s was not found. Msg %s will use multiplier 1 for this field.', currentMultIds(unitIdx), msgName);
+                        end
                     end
-                    multValue = MULTMult(idx);
-                    multValues(unitIdx) = multValue;
                 end
                 % Pass the information into the LogMsgGroup
-                if ~searchFailed
-                    obj.(msgName).setUnitNames(unitNames);
-                    obj.(msgName).setMultValues(multValues);
-                end
+                obj.(msgName).setUnitNames(unitNames);
+                obj.(msgName).setMultValues(multValues);
             end
         end
         
