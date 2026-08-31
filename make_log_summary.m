@@ -48,6 +48,8 @@ function process_summary(rootDir, outDir, maxLogs)
         error('No .bin files found under %s', rootDir);
     end
 
+    binFiles = sort_bin_files_by_start_time(binFiles);
+
     if isfinite(maxLogs) && maxLogs > 0 && numel(binFiles) > maxLogs
         binFiles = binFiles(1:maxLogs);
         fprintf('Debug mode: processing only first %d log(s).\n', maxLogs);
@@ -83,8 +85,13 @@ function process_summary(rootDir, outDir, maxLogs)
     end
 
     summaryTable = struct2table([processedLogs{:}]);
-    summaryTable = sortrows(summaryTable, 'FileName');
+    if height(summaryTable) > 0 && ismember('BootTimeUTC', summaryTable.Properties.VariableNames)
+        summaryTable = sortrows(summaryTable, 'BootTimeUTC');
+    else
+        summaryTable = sortrows(summaryTable, 'FileName');
+    end
 
+    summaryTable = attach_changed_params_to_summary(summaryTable, paramMaps);
     paramTable = build_changed_param_table(paramMaps);
     write_summary_markdown(summaryTable, paramTable, outDir);
 
@@ -114,11 +121,16 @@ function rec = summarize_single_log(log, fullPath)
     rec.FilePath = fullPath;
     rec.LogDir = fileparts(fullPath);
 
-    bootTimeVal = get_field_value(log, 'bootTimeUTC');
-    if ~isempty(bootTimeVal)
-        rec.BootTimeUTC = char(string(bootTimeVal));
+    startTimeVal = parse_datetime_as_string(basename_from_path(fullPath));
+    if ~isempty(startTimeVal)
+        rec.BootTimeUTC = char(string(startTimeVal));
     else
-        rec.BootTimeUTC = '';
+        startTimeVal = extract_log_start_time(log, fullPath);
+        if ~isempty(startTimeVal)
+            rec.BootTimeUTC = char(string(startTimeVal));
+        else
+            rec.BootTimeUTC = '';
+        end
     end
 
     rec.DurationSec = compute_duration(log);
@@ -127,7 +139,7 @@ function rec = summarize_single_log(log, fullPath)
     rec.AvgSpeedMps = NaN;
     rec.MaxSpeedMps = NaN;
     rec.MaxTurnRateRaw = NaN;
-    rec.ParamCount = 0;
+    rec.ChangedParams = '';
 
     modeInfo = summarize_modes(log);
     if ~isempty(modeInfo)
@@ -141,7 +153,9 @@ function rec = summarize_single_log(log, fullPath)
     rec.MaxTurnRateRaw = summarize_turn_rate(log);
 
     paramMap = extract_last_param_map(log);
-    rec.ParamCount = numel(keys(paramMap));
+    if ~isempty(paramMap)
+        rec.ChangedParams = '';
+    end
 end
 
 function [filteredLogs, filteredParamMaps] = filter_meaningful_logs(processedLogs, paramMaps, minDurationSec, minSpeedMps, minThrottleOut)
@@ -481,6 +495,7 @@ function paramMap = extract_last_param_map(log)
     if isempty(P)
         return;
     end
+
     if istable(P)
         if ~ismember('Name', P.Properties.VariableNames) || ~ismember('Value', P.Properties.VariableNames)
             return;
@@ -488,7 +503,7 @@ function paramMap = extract_last_param_map(log)
         names = P.Name(:);
         values = P.Value(:);
         for k = 1:numel(names)
-            key = char(string(names{k}));
+            key = normalize_param_name(names{k});
             if ~isempty(key)
                 paramMap(key) = values(k);
             end
@@ -501,7 +516,7 @@ function paramMap = extract_last_param_map(log)
             names = P.Name(:);
             values = P.Value(:);
             for k = 1:numel(names)
-                key = char(string(names{k}));
+                key = normalize_param_name(names{k});
                 if ~isempty(key)
                     paramMap(key) = values(k);
                 end
@@ -509,7 +524,6 @@ function paramMap = extract_last_param_map(log)
             return;
         end
 
-        % Some builds expose params as a struct of names to values.
         fn = fieldnames(P);
         for k = 1:numel(fn)
             key = fn{k};
@@ -518,7 +532,92 @@ function paramMap = extract_last_param_map(log)
                 paramMap(char(key)) = val;
             end
         end
+        return;
     end
+
+    if isobject(P)
+        if has_field_value(P, 'Name') && has_field_value(P, 'Value')
+            names = get_field_value(P, 'Name');
+            values = get_field_value(P, 'Value');
+            if ~isempty(names) && ~isempty(values)
+                namesCell = flatten_param_names(names);
+                valuesCell = flatten_param_values(values);
+                n = min(numel(namesCell), numel(valuesCell));
+                for k = 1:n
+                    key = normalize_param_name(namesCell{k});
+                    if ~isempty(key)
+                        paramMap(key) = valuesCell{k};
+                    end
+                end
+                return;
+            end
+        end
+    end
+
+    if iscell(P)
+        for k = 1:numel(P)
+            if isempty(P{k})
+                continue;
+            end
+            subMap = extract_last_param_map(struct('PARM', P{k}));
+            if ~isempty(subMap)
+                keysList = keys(subMap);
+                for j = 1:numel(keysList)
+                    key = keysList{j};
+                    paramMap(key) = subMap(key);
+                end
+            end
+        end
+    end
+end
+
+function namesCell = flatten_param_names(names)
+    if iscell(names)
+        namesCell = names(:);
+        return;
+    end
+    if isstring(names)
+        namesCell = cellstr(names(:));
+        return;
+    end
+    if ischar(names)
+        namesCell = cellstr(names);
+        return;
+    end
+    namesCell = num2cell(names(:));
+end
+
+function valuesCell = flatten_param_values(values)
+    if iscell(values)
+        valuesCell = values(:);
+        return;
+    end
+    if isstring(values)
+        valuesCell = cellstr(values(:));
+        return;
+    end
+    if ischar(values)
+        valuesCell = cellstr(values);
+        return;
+    end
+    valuesCell = num2cell(values(:));
+end
+
+function key = normalize_param_name(nameVal)
+    if isempty(nameVal)
+        key = '';
+        return;
+    end
+    if iscell(nameVal)
+        key = normalize_param_name(nameVal{1});
+        return;
+    end
+    if isstring(nameVal)
+        key = char(nameVal);
+        return;
+    end
+    key = char(string(nameVal));
+    key = strtrim(key);
 end
 
 function paramTable = build_changed_param_table(paramMaps)
@@ -527,39 +626,39 @@ function paramTable = build_changed_param_table(paramMaps)
         return;
     end
 
-    allNames = {};
+    rows = {};
+    prevMap = containers.Map('KeyType', 'char', 'ValueType', 'any');
+
     for i = 1:numel(paramMaps)
-        if isempty(paramMaps{i}.Map)
+        currentMap = paramMaps{i}.Map;
+        if isempty(currentMap)
+            prevMap = currentMap;
             continue;
         end
-        ks = keys(paramMaps{i}.Map);
-        allNames = [allNames, ks];
-    end
-    allNames = unique(allNames);
 
-    rows = {};
-    for j = 1:numel(allNames)
-        paramName = char(allNames{j});
-        valueSummary = {};
-        for i = 1:numel(paramMaps)
-            if ~isempty(paramMaps{i}.Map) && isKey(paramMaps{i}.Map, paramName)
-                val = paramMaps{i}.Map(paramName);
-                valueSummary{end + 1} = sprintf('%s=%s', paramMaps{i}.FileName, value_to_string(val));
+        relevantNames = keys(currentMap);
+        for j = 1:numel(relevantNames)
+            paramName = char(relevantNames{j});
+            if ~is_control_relevant_param(paramName)
+                continue;
+            end
+
+            currentVal = currentMap(paramName);
+            prevVal = [];
+            if ~isempty(prevMap) && isKey(prevMap, paramName)
+                prevVal = prevMap(paramName);
+            end
+
+            if isempty(prevVal) || ~values_equal(prevVal, currentVal)
+                % Skip the first log or any log where no previous value exists.
+                if ~isempty(prevVal)
+                    valueSummary = sprintf('%s=%s -> %s', paramMaps{i}.FileName, value_to_string(prevVal), value_to_string(currentVal));
+                    rows{end + 1} = struct('ParamName', paramName, 'ValueSummary', valueSummary);
+                end
             end
         end
 
-        if numel(valueSummary) < 2
-            continue;
-        end
-
-        uniqueVals = {};
-        for k = 1:numel(valueSummary)
-            uniqueVals{end + 1} = valueSummary{k};
-        end
-        if numel(unique(uniqueVals)) > 1
-            rows{end + 1} = struct('ParamName', paramName, ...
-                'ValueSummary', strjoin(valueSummary, '; '));
-        end
+        prevMap = currentMap;
     end
 
     if isempty(rows)
@@ -567,6 +666,111 @@ function paramTable = build_changed_param_table(paramMaps)
     end
 
     paramTable = struct2table([rows{:}]);
+end
+
+function tf = values_equal(a, b)
+    if isempty(a) && isempty(b)
+        tf = true;
+        return;
+    end
+    if isempty(a) || isempty(b)
+        tf = false;
+        return;
+    end
+    if isnumeric(a) && isnumeric(b)
+        tf = isequaln(a, b);
+        return;
+    end
+    if ischar(a) && ischar(b)
+        tf = strcmp(a, b);
+        return;
+    end
+    if iscell(a) && iscell(b)
+        tf = isequal(a, b);
+        return;
+    end
+    tf = isequaln(a, b);
+end
+
+function keep = is_control_relevant_param(name)
+    if isempty(name)
+        keep = false;
+        return;
+    end
+
+    n = upper(char(string(name)));
+
+    ignorePatterns = {'BARO', 'STAT_', 'GPS_', 'COMPASS', 'MAG_', 'INS_', 'RCIN', 'RCOU', 'RSSI', 'BATT_', 'BAT_' , 'SYS_', 'LOG_', 'FS_', 'IMU', 'EKF', 'SCHED', 'PID_' };
+    for p = 1:numel(ignorePatterns)
+        if contains(n, ignorePatterns{p})
+            keep = false;
+            return;
+        end
+    end
+
+    relevantPrefixes = {'ATC_', 'PILOT_', 'CRUISE_', 'THR_', 'SERVO_', 'STEER', 'TURN', 'WPNAV_', 'NAV_', 'L1_', 'PSC_', 'ANGLE', 'RATE', 'MOT_', 'MAV_'};
+    relevantContains = {'_FF', '_P', '_I', '_D', '_RATE', '_ANGLE', '_THR', '_SPD', '_SPEED', '_RAT', '_STR'};
+
+    keep = false;
+    for p = 1:numel(relevantPrefixes)
+        if startsWith(n, relevantPrefixes{p})
+            keep = true;
+            return;
+        end
+    end
+
+    for p = 1:numel(relevantContains)
+        if contains(n, relevantContains{p})
+            keep = true;
+            return;
+        end
+    end
+end
+
+function summaryTable = attach_changed_params_to_summary(summaryTable, paramMaps)
+    if isempty(summaryTable) || isempty(paramMaps)
+        return;
+    end
+
+    if height(summaryTable) ~= numel(paramMaps)
+        return;
+    end
+
+    changedList = cell(height(summaryTable), 1);
+    prevMap = containers.Map('KeyType', 'char', 'ValueType', 'any');
+
+    for i = 1:height(summaryTable)
+        currentMap = paramMaps{i}.Map;
+        names = {};
+
+        if ~isempty(currentMap)
+            keyList = keys(currentMap);
+            for j = 1:numel(keyList)
+                name = char(keyList{j});
+                if ~is_control_relevant_param(name)
+                    continue;
+                end
+
+                if isempty(prevMap) || ~isKey(prevMap, name)
+                    continue;
+                end
+
+                if ~values_equal(prevMap(name), currentMap(name))
+                    names{end + 1} = sprintf('%s: %s -> %s', name, value_to_string(prevMap(name)), value_to_string(currentMap(name)));
+                end
+            end
+        end
+
+        if isempty(names)
+            changedList{i} = '';
+        else
+            changedList{i} = strjoin(names, '; ');
+        end
+
+        prevMap = currentMap;
+    end
+
+    summaryTable.ChangedParams = changedList;
 end
 
 function s = value_to_string(val)
@@ -604,7 +808,7 @@ function write_summary_markdown(summaryTable, paramTable, outDir)
 
     fprintf(fid, '## Overview\n\n');
     fprintf(fid, '| File | Boot time UTC | Duration (s) | Main mode | Mode summary | Avg speed (m/s) | Max speed (m/s) | Max turn rate | Params |\n');
-    fprintf(fid, '| --- | --- | ---: | --- | --- | ---: | ---: | ---: | ---: |\n');
+    fprintf(fid, '| --- | --- | ---: | --- | --- | ---: | ---: | ---: | --- |\n');
 
     for i = 1:height(summaryTable)
         row = summaryTable(i, :);
@@ -616,10 +820,10 @@ function write_summary_markdown(summaryTable, paramTable, outDir)
         avgVal = format_numeric_markdown(row.AvgSpeedMps);
         maxVal = format_numeric_markdown(row.MaxSpeedMps);
         turnVal = format_numeric_markdown(row.MaxTurnRateRaw);
-        paramCount = sprintf('%d', row.ParamCount);
+        paramsText = safe_markdown_cell(row.ChangedParams);
 
         fprintf(fid, '| %s | %s | %s | %s | %s | %s | %s | %s | %s |\n', ...
-            fileName, bootTime, durationVal, modeName, modeSummary, avgVal, maxVal, turnVal, paramCount);
+            fileName, bootTime, durationVal, modeName, modeSummary, avgVal, maxVal, turnVal, paramsText);
     end
 
     fprintf(fid, '\n## Changed parameters\n\n');
@@ -714,6 +918,91 @@ function val = get_field_value(obj, fieldName)
     end
 
     val = [];
+end
+
+function fileList = sort_bin_files_by_start_time(fileList)
+    if isempty(fileList)
+        return;
+    end
+
+    timestamps = zeros(numel(fileList), 1);
+    for i = 1:numel(fileList)
+        timestamps(i) = log_start_epoch(fileList{i});
+    end
+
+    [~, order] = sort(timestamps);
+    fileList = fileList(order);
+end
+
+function epoch = log_start_epoch(filePath)
+    epoch = inf;
+    candidate = basename_from_path(filePath);
+    fallback = parse_datetime_from_filename(candidate);
+    if ~isempty(fallback)
+        epoch = datenum(fallback);
+        return;
+    end
+
+    try
+        log = Ardupilog(filePath);
+        startVal = extract_log_start_time(log, filePath);
+        if ~isempty(startVal)
+            epoch = datenum(datetime(startVal, 'InputFormat', 'yyyy-MM-dd HH:mm:ss'));
+        end
+    catch
+    end
+end
+
+function startTime = extract_log_start_time(log, fullPath)
+    startTime = [];
+    if ~isempty(fullPath)
+        candidate = basename_from_path(fullPath);
+        startTime = parse_datetime_as_string(candidate);
+        if ~isempty(startTime)
+            return;
+        end
+    end
+
+    if isempty(log)
+        return;
+    end
+
+    bootTimeVal = get_field_value(log, 'bootTimeUTC');
+    if ~isempty(bootTimeVal)
+        startTime = char(string(bootTimeVal));
+    end
+end
+
+function dt = parse_datetime_from_filename(fileName)
+    dt = [];
+    s = fileName;
+    s = strrep(s, '_', ' ');
+    s = strrep(s, '-', ' ');
+    s = regexprep(s, '([AP]M)', '');
+    s = strtrim(s);
+
+    tokens = regexp(s, '(\d{4})\s+(\d{1,2})\s+(\d{1,2})\s+(\d{1,2})\s+(\d{2})\s+(\d{2})', 'tokens');
+    if ~isempty(tokens)
+        tok = tokens{1};
+        if numel(tok) >= 6
+            year = str2double(tok{1});
+            month = str2double(tok{2});
+            day = str2double(tok{3});
+            hour = str2double(tok{4});
+            minute = str2double(tok{5});
+            second = str2double(tok{6});
+            dt = datetime(year, month, day, hour, minute, second);
+        end
+    end
+end
+
+function s = parse_datetime_as_string(fileName)
+    dt = parse_datetime_from_filename(fileName);
+    if isempty(dt)
+        s = '';
+    else
+        s = char(dt, 'yyyy-MM-dd HH:mm:ss');
+    end
 end
 
 function base = basename_from_path(p)
