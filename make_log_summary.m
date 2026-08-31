@@ -1,8 +1,25 @@
-function make_log_summary(rootDir, outDir)
+% =========================
+% CONFIGURATION
+% =========================
+global DEBUG_MAX_LOGS MIN_DURATION_SEC MIN_SPEED_MPS MIN_THROTTLE_OUT
+
+DEBUG_MAX_LOGS = 3;      % set to Inf to process all logs
+MIN_DURATION_SEC = 20;   % minimum useful log duration
+MIN_SPEED_MPS = 1;       % minimum speed to count as movement
+MIN_THROTTLE_OUT = 0.05; % minimum throttle output to count as active control
+
+rootDir = pwd;
+outDir = rootDir;
+maxLogs = DEBUG_MAX_LOGS;
+
+% Run the summary builder for the current folder.
+process_summary(rootDir, outDir, maxLogs);
+
+function process_summary(rootDir, outDir, maxLogs)
 %MAKE_LOG_SUMMARY  Build a summary report over all .bin logs in a folder tree.
 %   Usage:
-%       make_log_summary('c:\path\to\logs');
-%       make_log_summary('c:\path\to\logs', 'c:\path\to\out');
+%       make_log_summary            % runs with current folder and config above
+%       process_summary('c:\path\to\logs', 'c:\path\to\out', 3);
 %
 %   Reads only .bin files via Ardupilog and writes one Markdown report:
 %     - summary_report.md
@@ -10,11 +27,16 @@ function make_log_summary(rootDir, outDir)
 %   This script intentionally avoids CSV or external parsers and relies only
 %   on Ardupilog for the raw binary logs.
 
+    global DEBUG_MAX_LOGS MIN_DURATION_SEC MIN_SPEED_MPS MIN_THROTTLE_OUT
+
     if nargin < 1 || isempty(rootDir)
         rootDir = pwd;
     end
     if nargin < 2 || isempty(outDir)
         outDir = rootDir;
+    end
+    if nargin < 3 || isempty(maxLogs)
+        maxLogs = DEBUG_MAX_LOGS;
     end
 
     if ~exist(outDir, 'dir')
@@ -24,6 +46,11 @@ function make_log_summary(rootDir, outDir)
     binFiles = find_bin_files(rootDir);
     if isempty(binFiles)
         error('No .bin files found under %s', rootDir);
+    end
+
+    if isfinite(maxLogs) && maxLogs > 0 && numel(binFiles) > maxLogs
+        binFiles = binFiles(1:maxLogs);
+        fprintf('Debug mode: processing only first %d log(s).\n', maxLogs);
     end
 
     processedLogs = {};
@@ -48,6 +75,11 @@ function make_log_summary(rootDir, outDir)
 
     if isempty(processedLogs)
         error('No logs were successfully read with Ardupilog in %s', rootDir);
+    end
+
+    [processedLogs, paramMaps] = filter_meaningful_logs(processedLogs, paramMaps, MIN_DURATION_SEC, MIN_SPEED_MPS, MIN_THROTTLE_OUT);
+    if isempty(processedLogs)
+        error('No meaningful logs remained after filtering short / inactive runs in %s', rootDir);
     end
 
     summaryTable = struct2table([processedLogs{:}]);
@@ -110,6 +142,100 @@ function rec = summarize_single_log(log, fullPath)
 
     paramMap = extract_last_param_map(log);
     rec.ParamCount = numel(keys(paramMap));
+end
+
+function [filteredLogs, filteredParamMaps] = filter_meaningful_logs(processedLogs, paramMaps, minDurationSec, minSpeedMps, minThrottleOut)
+    filteredLogs = {};
+    filteredParamMaps = {};
+
+    for i = 1:numel(processedLogs)
+        rec = processedLogs{i};
+        if is_meaningful_log(rec, minDurationSec, minSpeedMps, minThrottleOut)
+            filteredLogs{end + 1} = rec;
+            filteredParamMaps{end + 1} = paramMaps{i};
+        end
+    end
+end
+
+function keep = is_meaningful_log(rec, minDurationSec, minSpeedMps, minThrottleOut)
+    global MIN_DURATION_SEC MIN_SPEED_MPS MIN_THROTTLE_OUT
+    keep = false;
+
+    if isempty(rec)
+        return;
+    end
+
+    if nargin < 2 || isempty(minDurationSec)
+        minDurationSec = MIN_DURATION_SEC;
+    end
+    if nargin < 3 || isempty(minSpeedMps)
+        minSpeedMps = MIN_SPEED_MPS;
+    end
+    if nargin < 4 || isempty(minThrottleOut)
+        minThrottleOut = MIN_THROTTLE_OUT;
+    end
+
+    durationSec = rec.DurationSec;
+    maxSpeed = rec.MaxSpeedMps;
+    maxThrottleOut = summarize_max_throttle_out_from_rec(rec);
+
+    if ~isnumeric(durationSec) || isnan(durationSec)
+        durationSec = 0;
+    end
+    if ~isnumeric(maxSpeed) || isnan(maxSpeed)
+        maxSpeed = 0;
+    end
+    if ~isnumeric(maxThrottleOut) || isnan(maxThrottleOut)
+        maxThrottleOut = 0;
+    end
+
+    if durationSec < minDurationSec
+        keep = (maxSpeed >= (minSpeedMps + 0.2)) && (maxThrottleOut >= (minThrottleOut + 0.05));
+    else
+        keep = (maxSpeed >= minSpeedMps) && (maxThrottleOut >= minThrottleOut);
+    end
+end
+
+function maxThrottle = summarize_max_throttle_out_from_rec(rec)
+    maxThrottle = NaN;
+    if isempty(rec) || ~isfield(rec, 'FileName')
+        return;
+    end
+
+    fullPath = rec.FilePath;
+    if isempty(fullPath) || ~exist(fullPath, 'file')
+        return;
+    end
+
+    try
+        log = Ardupilog(fullPath);
+        if ismethod(log, 'deleteEmptyMsgs')
+            log = log.deleteEmptyMsgs;
+        end
+    catch
+        return;
+    end
+
+    thrObj = get_field_value(log, 'THR');
+    if isempty(thrObj)
+        return;
+    end
+
+    throttleOut = get_field_value(thrObj, 'ThrOut');
+    if isempty(throttleOut)
+        throttleOut = get_field_value(thrObj, 'ThrottleOut');
+    end
+    if isempty(throttleOut)
+        return;
+    end
+
+    vals = double(throttleOut(:));
+    vals = vals(~isnan(vals) & isfinite(vals));
+    if isempty(vals)
+        return;
+    end
+
+    maxThrottle = max(abs(vals));
 end
 
 function durationSec = compute_duration(log)
@@ -228,6 +354,17 @@ function modeInfo = summarize_modes(log)
     keysList = keys(accum);
     valuesList = values(accum);
     durations = cell2mat(valuesList);
+
+    keepMask = durations >= 5.0;
+    keysList = keysList(keepMask);
+    valuesList = valuesList(keepMask);
+    durations = cell2mat(valuesList);
+
+    if isempty(durations)
+        modeInfo = [];
+        return;
+    end
+
     [sortedDur, ord2] = sort(durations, 'descend');
 
     summaryParts = {};
