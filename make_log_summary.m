@@ -204,9 +204,9 @@ function keep = is_meaningful_log(rec, minDurationSec, minSpeedMps, minThrottleO
     end
 
     if durationSec < minDurationSec
-        keep = (maxSpeed >= (minSpeedMps + 0.2)) && (maxThrottleOut >= (minThrottleOut + 0.05));
+        keep = (maxSpeed >= (minSpeedMps + 0.2)) || (maxThrottleOut >= (minThrottleOut + 0.05));
     else
-        keep = (maxSpeed >= minSpeedMps) && (maxThrottleOut >= minThrottleOut);
+        keep = (maxSpeed >= minSpeedMps);
     end
 end
 
