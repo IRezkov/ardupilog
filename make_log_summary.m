@@ -774,7 +774,7 @@ function keep = is_control_relevant_param(name)
         end
     end
 
-    relevantPrefixes = {'ATC_', 'PILOT_', 'CRUISE_', 'THR_', 'SERVO_', 'STEER', 'TURN', 'WPNAV_', 'NAV_', 'L1_', 'PSC_', 'ANGLE', 'RATE', 'MOT_', 'MAV_'};
+    relevantPrefixes = {'ATC_', 'ACRO', 'ANK', 'WP', 'PILOT_', 'CRUISE_', 'THR_', 'SERVO_', 'STEER', 'TURN', 'WPNAV_', 'NAV_', 'L1_', 'PSC_', 'ANGLE', 'RATE', 'MOT_', 'MAV_'};
     relevantContains = {'_FF', '_P', '_I', '_D', '_RATE', '_ANGLE', '_THR', '_SPD', '_SPEED', '_RAT', '_STR'};
 
     keep = false;
@@ -785,12 +785,12 @@ function keep = is_control_relevant_param(name)
         end
     end
 
-    for p = 1:numel(relevantContains)
-        if contains(n, relevantContains{p})
-            keep = true;
-            return;
-        end
-    end
+    % for p = 1:numel(relevantContains)
+    %     if contains(n, relevantContains{p})
+    %         keep = true;
+    %         return;
+    %     end
+    % end
 end
 
 function summaryTable = attach_changed_params_to_summary(summaryTable, paramMaps)
