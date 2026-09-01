@@ -3,7 +3,7 @@
 % =========================
 global DEBUG_MAX_LOGS MIN_DURATION_SEC MIN_SPEED_MPS MIN_THROTTLE_OUT
 
-DEBUG_MAX_LOGS = 3;      % set to Inf to process all logs
+DEBUG_MAX_LOGS = inf;      % set to Inf to process all logs
 MIN_DURATION_SEC = 20;   % minimum useful log duration
 MIN_SPEED_MPS = 1;       % minimum speed to count as movement
 MIN_THROTTLE_OUT = 0.05; % minimum throttle output to count as active control
@@ -72,7 +72,7 @@ function process_summary(rootDir, outDir, maxLogs)
 
         rec = summarize_single_log(log, filePath);
         processedLogs{end + 1} = rec;
-        paramMaps{end + 1} = struct('FileName', rec.FileName, 'Map', extract_last_param_map(log));
+        paramMaps{end + 1} = struct('FileName', rec.FileName, 'Map', extract_last_param_map(log), 'History', extract_param_history(log));
     end
 
     if isempty(processedLogs)
@@ -425,9 +425,23 @@ end
 
 function name = mode_name_from_id(modeId)
     modeMap = {
-        'MANUAL'; 'ACRO'; 'STEERING'; 'HOLD'; 'LOITER'; 'FOLLOW'; ...
-        'SIMPLE'; 'DOCK'; 'CIRCLE'; 'AUTO'; 'RTL'; 'SMART_RTL'; ...
-        'GUIDED'; 'INITIALISING'
+        'MANUAL';
+        'ACRO';
+        '2';          % 2 — пропущен в исходном enum
+        'STEERING';
+        'HOLD';
+        'LOITER';
+        'FOLLOW';
+        'SIMPLE';
+        'DOCK';
+        'CIRCLE';
+        'AUTO';
+        'RTL';
+        'SMART_RTL';
+        '13';    
+        '14'; % 13,14 — пропущены
+        'GUIDED';
+        'INITIALISING'
     };
 
     idx = modeId + 1;
@@ -568,6 +582,58 @@ function paramMap = extract_last_param_map(log)
                 end
             end
         end
+    end
+end
+
+function paramHistory = extract_param_history(log)
+    paramHistory = containers.Map('KeyType', 'char', 'ValueType', 'any');
+    P = get_field_value(log, 'PARM');
+    if isempty(P)
+        return;
+    end
+
+    names = [];
+    values = [];
+
+    if istable(P)
+        if ~ismember('Name', P.Properties.VariableNames) || ~ismember('Value', P.Properties.VariableNames)
+            return;
+        end
+        names = P.Name(:);
+        values = P.Value(:);
+    elseif isstruct(P)
+        if isfield(P, 'Name') && isfield(P, 'Value')
+            names = P.Name(:);
+            values = P.Value(:);
+        end
+    elseif isobject(P)
+        if has_field_value(P, 'Name') && has_field_value(P, 'Value')
+            names = get_field_value(P, 'Name');
+            values = get_field_value(P, 'Value');
+        end
+    end
+
+    if isempty(names) || isempty(values)
+        return;
+    end
+
+    namesCell = flatten_param_names(names);
+    valuesCell = flatten_param_values(values);
+    n = min(numel(namesCell), numel(valuesCell));
+    for k = 1:n
+        key = normalize_param_name(namesCell{k});
+        if isempty(key)
+            continue;
+        end
+        if ~isKey(paramHistory, key)
+            paramHistory(key) = {};
+        end
+        arr = paramHistory(key);
+        if ~iscell(arr)
+            arr = {arr};
+        end
+        arr{end + 1} = valuesCell{k};
+        paramHistory(key) = arr;
     end
 end
 
@@ -741,7 +807,41 @@ function summaryTable = attach_changed_params_to_summary(summaryTable, paramMaps
 
     for i = 1:height(summaryTable)
         currentMap = paramMaps{i}.Map;
+        currentHistory = [];
+        if isfield(paramMaps{i}, 'History')
+            currentHistory = paramMaps{i}.History;
+        end
         names = {};
+        seen = containers.Map('KeyType', 'char', 'ValueType', 'logical');
+
+        add_name = @(nameText, textValue) [];
+        add_name = @(nameText, textValue) set_value_in_map(seen, nameText, true, textValue, names);
+
+        if ~isempty(currentHistory)
+            historyKeys = keys(currentHistory);
+            for j = 1:numel(historyKeys)
+                name = char(historyKeys{j});
+                if ~is_control_relevant_param(name)
+                    continue;
+                end
+
+                vals = currentHistory(name);
+                if ~iscell(vals)
+                    vals = {vals};
+                end
+                if numel(vals) >= 2
+                    firstVal = vals{1};
+                    lastVal = vals{end};
+                    if ~values_equal(firstVal, lastVal)
+                        textValue = sprintf('%s: %s -> %s', name, value_to_string(firstVal), value_to_string(lastVal));
+                        if ~isKey(seen, name)
+                            names{end + 1} = textValue;
+                            seen(name) = true;
+                        end
+                    end
+                end
+            end
+        end
 
         if ~isempty(currentMap)
             keyList = keys(currentMap);
@@ -756,7 +856,11 @@ function summaryTable = attach_changed_params_to_summary(summaryTable, paramMaps
                 end
 
                 if ~values_equal(prevMap(name), currentMap(name))
-                    names{end + 1} = sprintf('%s: %s -> %s', name, value_to_string(prevMap(name)), value_to_string(currentMap(name)));
+                    textValue = sprintf('%s: %s -> %s', name, value_to_string(prevMap(name)), value_to_string(currentMap(name)));
+                    if ~isKey(seen, name)
+                        names{end + 1} = textValue;
+                        seen(name) = true;
+                    end
                 end
             end
         end
@@ -771,6 +875,13 @@ function summaryTable = attach_changed_params_to_summary(summaryTable, paramMaps
     end
 
     summaryTable.ChangedParams = changedList;
+end
+
+function set_value_in_map(mapObj, keyName, value, textValue, listCell)
+    if ~isKey(mapObj, keyName)
+        listCell{end + 1} = textValue;
+        mapObj(keyName) = value;
+    end
 end
 
 function s = value_to_string(val)
