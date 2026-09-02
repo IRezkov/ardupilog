@@ -1,0 +1,1492 @@
+<!DOCTYPE html>
+            <html>
+                <head>                    
+                    <meta http-equiv="X-UA-Compatible" content="IE=edge"></meta>
+                    <meta http-equiv="content-type" content="text/html; charset=utf-8"></meta>
+                    <title>summary_report.md</title>
+                    <style type="text/css">
+                    /*
+Copyright (c) 2017 Chris Patuzzo
+https://twitter.com/chrispatuzzo
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
+
+body {
+  font-family: Helvetica, arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+  padding-top: 10px;
+  padding-bottom: 10px;
+  background-color: #202020;
+  padding: 30px;
+  color: #CCCCCC;
+}
+
+    body > *:first-child {
+        margin-top: 0 !important;
+    }
+
+    body > *:last-child {
+        margin-bottom: 0 !important;
+    }
+
+a {
+    color: #BE7C3B;
+    text-decoration: none;
+}
+
+    a.absent {
+        color: #33FFFF;
+    }
+
+    a.anchor {
+        display: block;
+        padding-left: 30px;
+        margin-left: -30px;
+        cursor: pointer;
+        position: absolute;
+        top: 0;
+        left: 0;
+        bottom: 0;
+    }
+
+h1, h2, h3, h4, h5, h6 {
+    margin: 20px 0 10px;
+    padding: 0;
+    font-weight: bold;
+    -webkit-font-smoothing: antialiased;
+    cursor: text;
+    position: relative;
+}
+
+    h2:first-child, h1:first-child, h1:first-child + h2, h3:first-child, h4:first-child, h5:first-child, h6:first-child {
+        margin-top: 0;
+        padding-top: 0;
+    }
+
+    h1:hover a.anchor, h2:hover a.anchor, h3:hover a.anchor, h4:hover a.anchor, h5:hover a.anchor, h6:hover a.anchor {
+        text-decoration: none;
+    }
+
+    h1 tt, h1 code {
+        font-size: inherit;
+    }
+
+    h2 tt, h2 code {
+        font-size: inherit;
+    }
+
+    h3 tt, h3 code {
+        font-size: inherit;
+    }
+
+    h4 tt, h4 code {
+        font-size: inherit;
+    }
+
+    h5 tt, h5 code {
+        font-size: inherit;
+    }
+
+    h6 tt, h6 code {
+        font-size: inherit;
+    }
+
+h1 {
+    font-size: 28px;
+    color: white;
+}
+
+h2 {
+    font-size: 24px;
+    border-bottom: 1px solid #cccccc;
+    color: white;
+}
+
+h3 {
+    font-size: 18px;
+}
+
+h4 {
+    font-size: 16px;
+}
+
+h5 {
+    font-size: 14px;
+}
+
+h6 {
+    color: #888888;
+    font-size: 14px;
+}
+
+p, blockquote, ul, ol, dl, li, table, pre {
+    margin: 15px 0;
+}
+
+/*
+hr {
+  border: 0 none;
+  color: #333333;
+  height: 4px;
+  padding: 0;
+}
+*/
+body > h2:first-child {
+    margin-top: 0;
+    padding-top: 0;
+}
+
+body > h1:first-child {
+    margin-top: 0;
+    padding-top: 0;
+}
+
+    body > h1:first-child + h2 {
+        margin-top: 0;
+        padding-top: 0;
+    }
+
+body > h3:first-child, body > h4:first-child, body > h5:first-child, body > h6:first-child {
+    margin-top: 0;
+    padding-top: 0;
+}
+
+a:first-child h1, a:first-child h2, a:first-child h3, a:first-child h4, a:first-child h5, a:first-child h6 {
+    margin-top: 0;
+    padding-top: 0;
+}
+
+h1 p, h2 p, h3 p, h4 p, h5 p, h6 p {
+    margin-top: 0;
+}
+
+li p.first {
+    display: inline-block;
+}
+
+ul, ol {
+    padding-left: 30px;
+}
+
+    ul :first-child, ol :first-child {
+        margin-top: 0;
+    }
+
+    ul :last-child, ol :last-child {
+        margin-bottom: 0;
+    }
+
+dl {
+    padding: 0;
+}
+
+    dl dt {
+        font-size: 14px;
+        font-weight: bold;
+        font-style: italic;
+        padding: 0;
+        margin: 15px 0 5px;
+    }
+
+        dl dt:first-child {
+            padding: 0;
+        }
+
+        dl dt > :first-child {
+            margin-top: 0;
+        }
+
+        dl dt > :last-child {
+            margin-bottom: 0;
+        }
+
+    dl dd {
+        margin: 0 0 15px;
+        padding: 0 15px;
+    }
+
+        dl dd > :first-child {
+            margin-top: 0;
+        }
+
+        dl dd > :last-child {
+            margin-bottom: 0;
+        }
+
+blockquote {
+    border-left: 4px solid #dddddd;
+    padding: 0 15px;
+    color: #888888;
+}
+
+    blockquote > :first-child {
+        margin-top: 0;
+    }
+
+    blockquote > :last-child {
+        margin-bottom: 0;
+    }
+
+table {
+  padding: 0;
+  border-collapse: collapse;
+}
+table tr {
+  border-top: 1px solid #cccccc;
+  background-color: black;
+  margin: 0;
+  padding: 0;
+}
+
+table tr:nth-child(2n) {
+  background-color: #202834;
+}
+
+table tr th {
+  font-weight: bold;
+  border: 1px solid #cccccc;
+  text-align: left;
+  margin: 0;
+  padding: 6px 13px;
+}
+
+table tr td {
+  border: 1px solid #cccccc;
+  text-align: left;
+  margin: 0;
+  padding: 6px 13px;
+}
+
+table tr th :first-child, table tr td :first-child {
+  margin-top: 0;
+}
+
+table tr th :last-child, table tr td :last-child {
+  margin-bottom: 0;
+}
+
+img {
+    max-width: 100%;
+}
+
+span.frame {
+    display: block;
+    overflow: hidden;
+}
+
+    span.frame > span {
+        border: 1px solid #dddddd;
+        display: block;
+        float: left;
+        overflow: hidden;
+        margin: 13px 0 0;
+        padding: 7px;
+        width: auto;
+    }
+
+    span.frame span img {
+        display: block;
+        float: left;
+    }
+
+    span.frame span span {
+        clear: both;
+        color: #CCCCCC;
+        display: block;
+        padding: 5px 0 0;
+    }
+
+span.align-center {
+    display: block;
+    overflow: hidden;
+    clear: both;
+}
+
+    span.align-center > span {
+        display: block;
+        overflow: hidden;
+        margin: 13px auto 0;
+        text-align: center;
+    }
+
+    span.align-center span img {
+        margin: 0 auto;
+        text-align: center;
+    }
+
+span.align-right {
+    display: block;
+    overflow: hidden;
+    clear: both;
+}
+
+    span.align-right > span {
+        display: block;
+        overflow: hidden;
+        margin: 13px 0 0;
+        text-align: right;
+    }
+
+    span.align-right span img {
+        margin: 0;
+        text-align: right;
+    }
+
+span.float-left {
+    display: block;
+    margin-right: 13px;
+    overflow: hidden;
+    float: left;
+}
+
+    span.float-left span {
+        margin: 13px 0 0;
+    }
+
+span.float-right {
+    display: block;
+    margin-left: 13px;
+    overflow: hidden;
+    float: right;
+}
+
+    span.float-right > span {
+        display: block;
+        overflow: hidden;
+        margin: 13px auto 0;
+        text-align: right;
+    }
+
+code, tt {
+    margin: 0 2px;
+    padding: 0 5px;
+    white-space: nowrap;
+    border: 1px solid #eaeaea;
+    background-color: #333;
+    border-radius: 3px;
+}
+
+pre code {
+    margin: 0;
+    padding: 0;
+    white-space: pre;
+    border: none;
+    background: transparent;
+}
+
+.highlight pre {
+    background-color: #333;
+    border: 1px solid #eaeaea;
+    font-size: 13px;
+    line-height: 19px;
+    overflow: auto;
+    padding: 6px 10px;
+    border-radius: 3px;
+}
+
+pre {
+    background-color: #333;
+    border: 1px solid #eaeaea;
+    font-size: 13px;
+    line-height: 19px;
+    overflow: auto;
+    padding: 6px 10px;
+    border-radius: 3px;
+}
+
+    pre code, pre tt {
+        background-color: transparent;
+        border: none;
+    }
+
+/* Syntax Highlighting */
+
+.plainText {
+    background-color: #FFFFFF;
+    color: #000000;
+}
+
+.htmlServerSideScript {
+    background-color: #FFFF00;
+}
+
+.htmlComment {
+    color: #307F30;
+}
+
+.htmlTagDelimiter {
+    color: #7F7FFF;
+}
+
+.htmlElementName {
+    color: #CC6C4E;
+}
+
+.htmlAttributeName {
+    color: #FF0000;
+}
+
+.htmlAttributeValue {
+    color: #7F7FFF;
+}
+
+.htmlOperator {
+    color: #7F7FFF;
+}
+
+.comment {
+    color: #307F30;
+}
+
+.xmlDocTag {
+    color: #808080;
+}
+
+.xmlDocComment {
+    color: #307F30;
+}
+
+.string {
+    color: #CC6C4E;
+}
+
+.stringCSharpVerbatim {
+    color: #CC6C4E;
+}
+
+.keyword {
+    color: #7F7FFF;
+}
+
+.preprocessorKeyword {
+    color: #7F7FFF;
+}
+
+.htmlEntity {
+    color: #FF0000;
+}
+
+.xmlAttribute {
+    color: #FF0000;
+}
+
+.xmlAttributeQuotes {
+    color: #000000;
+}
+
+.xmlAttributeValue {
+    color: #7F7FFF;
+}
+
+.xmlCDataSection {
+    color: #808080;
+}
+
+.xmlComment {
+    color: #307F30;
+}
+
+.xmlDelimiter {
+    color: #7F7FFF;
+}
+
+.xmlName {
+    color: #CC6C4E;
+}
+
+.className {
+    color: #48D1CC;
+}
+
+.cssSelector {
+    color: #CC6C4E;
+}
+
+.cssPropertyName {
+    color: #FF0000;
+}
+
+.cssPropertyValue {
+    color: #7F7FFF;
+}
+
+.sqlSystemFunction {
+    color: #FF00FF;
+}
+
+.powershellAttribute {
+    color: #B0E0E6;
+}
+
+.powershellOperator {
+    color: #808080;
+}
+
+.powershellType {
+    color: #008080;
+}
+
+.powershellVariable {
+    color: #FF4500;
+}
+
+.type {
+    color: #008080;
+}
+
+.typeVariable {
+    color: #008080;
+    font-style: italic;
+}
+
+.namespace {
+    color: #000080;
+}
+
+.constructor {
+    color: #800080;
+}
+
+.predefined {
+    color: #000080;
+}
+
+.pseudoKeyword {
+    color: #000080;
+}
+
+.stringEscape {
+    color: #808080;
+}
+
+.controlKeyword {
+    color: #7F7FFF;
+}
+
+.number {
+}
+
+.operator {
+}
+
+.delimiter {
+}
+
+.markdownHeader {
+    font-weight: bold;
+}
+
+.markdownCode {
+    color: #008080;
+}
+
+.markdownListItem {
+    font-weight: bold;
+}
+
+.italic {
+    font-style: italic;
+}
+
+.bold {
+    font-weight: bold;
+}
+
+/* Styles for github alerts */
+:root {
+    --color-note: #2f81f7;
+    --color-tip: #3fb950;
+    --color-warning: #d29922;
+    --color-severe: #db6d28;
+    --color-caution: #f85149;
+    --color-important: #a371f7;
+}
+
+.markdown-alert {
+    padding: 0.5rem 1rem;
+    margin-bottom: 16px;
+    color: inherit;
+    border-left: .25em solid #888;
+}
+
+    .markdown-alert > :first-child {
+        margin-top: 0
+    }
+
+    .markdown-alert > :last-child {
+        margin-bottom: 0
+    }
+
+    .markdown-alert .markdown-alert-title {
+        display: flex;
+        font-weight: 500;
+        align-items: center;
+        line-height: 1
+    }
+
+        .markdown-alert .markdown-alert-title svg {
+            margin-right: 0.5rem;
+            display: inline-block;
+            overflow: visible !important;
+            vertical-align: text-bottom;
+            fill: currentColor;
+        }
+
+    .markdown-alert.markdown-alert-note {
+        border-left-color: var(--color-note);
+    }
+
+        .markdown-alert.markdown-alert-note .markdown-alert-title {
+            color: var(--color-note);
+        }
+
+    .markdown-alert.markdown-alert-important {
+        border-left-color: var(--color-important);
+    }
+
+        .markdown-alert.markdown-alert-important .markdown-alert-title {
+            color: var(--color-important);
+        }
+
+    .markdown-alert.markdown-alert-warning {
+        border-left-color: var(--color-warning);
+    }
+
+        .markdown-alert.markdown-alert-warning .markdown-alert-title {
+            color: var(--color-warning);
+        }
+
+    .markdown-alert.markdown-alert-tip {
+        border-left-color: var(--color-tip);
+    }
+
+        .markdown-alert.markdown-alert-tip .markdown-alert-title {
+            color: var(--color-tip);
+        }
+
+    .markdown-alert.markdown-alert-caution {
+        border-left-color: var(--color-caution);
+    }
+
+        .markdown-alert.markdown-alert-caution .markdown-alert-title {
+            color: var(--color-caution);
+        }
+
+                    </style>
+                </head>
+                <body class="markdown-body" style="">
+                <h1 id="0">Log summary report</h1>
+<p id="2">Generated for 51 log(s).</p>
+<h2 id="4">Overview</h2>
+<table id="6">
+<thead>
+<tr id="6">
+<th id="6">File</th>
+<th id="6">Boot time UTC</th>
+<th style="text-align: right;" id="6">Duration (s)</th>
+<th id="6">Main mode</th>
+<th id="6">Mode summary</th>
+<th style="text-align: right;" id="6">Avg speed (m/s)</th>
+<th style="text-align: right;" id="6">Max speed (m/s)</th>
+<th style="text-align: right;" id="6">Max turn rate</th>
+<th id="6">Params</th>
+</tr>
+</thead>
+<tbody>
+<tr id="8">
+<td id="8">log_37_2026-7-23-14-01-28.bin</td>
+<td id="8">2026-07-23 14:01:28</td>
+<td style="text-align: right;" id="8">586.4006</td>
+<td id="8">MANUAL</td>
+<td id="8">MANUAL: 585.3s</td>
+<td style="text-align: right;" id="8">0.49903</td>
+<td style="text-align: right;" id="8">1.62</td>
+<td style="text-align: right;" id="8">15.0034</td>
+<td id="8">GPS1_RATE_MS: 200 -&gt; 500</td>
+</tr>
+<tr id="9">
+<td id="9">log_38_2026-7-23-14-03-20.bin</td>
+<td id="9">2026-07-23 14:03:20</td>
+<td style="text-align: right;" id="9">85.3008</td>
+<td id="9">MANUAL</td>
+<td id="9">MANUAL: 84.2s</td>
+<td style="text-align: right;" id="9">0.51718</td>
+<td style="text-align: right;" id="9">1.05</td>
+<td style="text-align: right;" id="9">14.3377</td>
+<td id="9">GPS1_RATE_MS: 500 -&gt; 200</td>
+</tr>
+<tr id="10">
+<td id="10">log_39_2026-7-23-14-31-44.bin</td>
+<td id="10">2026-07-23 14:31:44</td>
+<td style="text-align: right;" id="10">1469.9996</td>
+<td id="10">MANUAL</td>
+<td id="10">MANUAL: 765.8s, AUTO: 477.4s, ACRO: 151.2s, GUIDED: 72.7s</td>
+<td style="text-align: right;" id="10">1.1058</td>
+<td style="text-align: right;" id="10">9.85</td>
+<td style="text-align: right;" id="10">25.8893</td>
+<td id="10">-</td>
+</tr>
+<tr id="11">
+<td id="11">log_40_2026-7-23-14-38-08.bin</td>
+<td id="11">2026-07-23 14:38:08</td>
+<td style="text-align: right;" id="11">363.1</td>
+<td id="11">ACRO</td>
+<td id="11">ACRO: 362.0s</td>
+<td style="text-align: right;" id="11">2.1443</td>
+<td style="text-align: right;" id="11">4.32</td>
+<td style="text-align: right;" id="11">21.5474</td>
+<td id="11">-</td>
+</tr>
+<tr id="12">
+<td id="12">log_41_2026-7-23-14-50-16.bin</td>
+<td id="12">2026-07-23 14:50:16</td>
+<td style="text-align: right;" id="12">2777.9283</td>
+<td id="12">ACRO</td>
+<td id="12">ACRO: 452.0s</td>
+<td style="text-align: right;" id="12">2.5455</td>
+<td style="text-align: right;" id="12">5.73</td>
+<td style="text-align: right;" id="12">24.2213</td>
+<td id="12">ATC_STR_RAT_I: 0.12 -&gt; 0.08; ATC_STR_RAT_MAX: 15 -&gt; 25</td>
+</tr>
+<tr id="13">
+<td id="13">log_42_2026-7-23-14-59-06.bin</td>
+<td id="13">2026-07-23 14:59:06</td>
+<td style="text-align: right;" id="13">455.1183</td>
+<td id="13">ACRO</td>
+<td id="13">ACRO: 454.0s</td>
+<td style="text-align: right;" id="13">3.1924</td>
+<td style="text-align: right;" id="13">6.78</td>
+<td style="text-align: right;" id="13">23.4703</td>
+<td id="13">ATC_STR_RAT_P: 0.3 -&gt; 0.2</td>
+</tr>
+<tr id="14">
+<td id="14">log_43_2026-7-23-15-05-40.bin</td>
+<td id="14">2026-07-23 15:05:40</td>
+<td style="text-align: right;" id="14">261.6997</td>
+<td id="14">ACRO</td>
+<td id="14">ACRO: 260.6s</td>
+<td style="text-align: right;" id="14">1.8452</td>
+<td style="text-align: right;" id="14">4.39</td>
+<td style="text-align: right;" id="14">23.0002</td>
+<td id="14">ATC_STR_RAT_P: 0.2 -&gt; 0.4</td>
+</tr>
+<tr id="15">
+<td id="15">log_45_2026-7-23-15-39-42.bin</td>
+<td id="15">2026-07-23 15:39:42</td>
+<td style="text-align: right;" id="15">1935.3998</td>
+<td id="15">MANUAL</td>
+<td id="15">MANUAL: 1545.2s, AUTO: 383.8s</td>
+<td style="text-align: right;" id="15">1.5591</td>
+<td style="text-align: right;" id="15">9.91</td>
+<td style="text-align: right;" id="15">31.7915</td>
+<td id="15">-</td>
+</tr>
+<tr id="16">
+<td id="16">log_46_2026-7-23-15-43-52.bin</td>
+<td id="16">2026-07-23 15:43:52</td>
+<td style="text-align: right;" id="16">243.2995</td>
+<td id="16">MANUAL</td>
+<td id="16">MANUAL: 242.2s</td>
+<td style="text-align: right;" id="16">0.28819</td>
+<td style="text-align: right;" id="16">1.69</td>
+<td style="text-align: right;" id="16">5.9618</td>
+<td id="16">ATC_STR_ANG_P: 2 -&gt; 1.2</td>
+</tr>
+<tr id="17">
+<td id="17">log_47_2026-7-23-15-52-58.bin</td>
+<td id="17">2026-07-23 15:52:58</td>
+<td style="text-align: right;" id="17">480.1224</td>
+<td id="17">ACRO</td>
+<td id="17">ACRO: 387.6s, MANUAL: 78.4s, AUTO: 12.5s</td>
+<td style="text-align: right;" id="17">3.6275</td>
+<td style="text-align: right;" id="17">6.76</td>
+<td style="text-align: right;" id="17">25.7853</td>
+<td id="17">-</td>
+</tr>
+<tr id="18">
+<td id="18">log_48_2026-7-23-16-25-46.bin</td>
+<td id="18">2026-07-23 16:25:46</td>
+<td style="text-align: right;" id="18">1819.7999</td>
+<td id="18">ACRO</td>
+<td id="18">ACRO: 1124.9s, MANUAL: 539.1s, AUTO: 148.2s, RTL: 6.6s</td>
+<td style="text-align: right;" id="18">1.5226</td>
+<td style="text-align: right;" id="18">9.34</td>
+<td style="text-align: right;" id="18">27.8956</td>
+<td id="18">WP_RADIUS: 5 -&gt; 10</td>
+</tr>
+<tr id="19">
+<td id="19">2026-07-29_12-33-09.bin</td>
+<td id="19">2026-07-29 12:33:09</td>
+<td style="text-align: right;" id="19">183.0996</td>
+<td id="19">ACRO</td>
+<td id="19">ACRO: 123.5s, MANUAL: 57.9s</td>
+<td style="text-align: right;" id="19">2.353</td>
+<td style="text-align: right;" id="19">5.08</td>
+<td style="text-align: right;" id="19">20.8761</td>
+<td id="19">ATC_STR_RAT_FF: 2.4 -&gt; 1.7; ATC_STR_RAT_MAX: 25 -&gt; 15</td>
+</tr>
+<tr id="20">
+<td id="20">2026-07-29_12-33-09.bin</td>
+<td id="20">2026-07-29 12:33:09</td>
+<td style="text-align: right;" id="20">183.0996</td>
+<td id="20">ACRO</td>
+<td id="20">ACRO: 123.5s, MANUAL: 57.9s</td>
+<td style="text-align: right;" id="20">2.353</td>
+<td style="text-align: right;" id="20">5.08</td>
+<td style="text-align: right;" id="20">20.8761</td>
+<td id="20">-</td>
+</tr>
+<tr id="21">
+<td id="21">2026-07-29_12-50-21.bin</td>
+<td id="21">2026-07-29 12:50:21</td>
+<td style="text-align: right;" id="21">208.6814</td>
+<td id="21">ACRO</td>
+<td id="21">ACRO: 189.8s, MANUAL: 17.3s</td>
+<td style="text-align: right;" id="21">3.7817</td>
+<td style="text-align: right;" id="21">9.5</td>
+<td style="text-align: right;" id="21">14.6863</td>
+<td id="21">ATC_STR_RAT_FF: 1.7 -&gt; 1.15</td>
+</tr>
+<tr id="22">
+<td id="22">2026-07-29_12-50-21.bin</td>
+<td id="22">2026-07-29 12:50:21</td>
+<td style="text-align: right;" id="22">208.6814</td>
+<td id="22">ACRO</td>
+<td id="22">ACRO: 189.8s, MANUAL: 17.3s</td>
+<td style="text-align: right;" id="22">3.7817</td>
+<td style="text-align: right;" id="22">9.5</td>
+<td style="text-align: right;" id="22">14.6863</td>
+<td id="22">-</td>
+</tr>
+<tr id="23">
+<td id="23">2026-07-29_13-05-20.bin</td>
+<td id="23">2026-07-29 13:05:20</td>
+<td style="text-align: right;" id="23">368.4213</td>
+<td id="23">ACRO</td>
+<td id="23">ACRO: 350.7s, MANUAL: 16.0s</td>
+<td style="text-align: right;" id="23">2.3418</td>
+<td style="text-align: right;" id="23">3.24</td>
+<td style="text-align: right;" id="23">12.8475</td>
+<td id="23">-</td>
+</tr>
+<tr id="24">
+<td id="24">2026-07-29_13-05-20.bin</td>
+<td id="24">2026-07-29 13:05:20</td>
+<td style="text-align: right;" id="24">368.4213</td>
+<td id="24">ACRO</td>
+<td id="24">ACRO: 350.7s, MANUAL: 16.0s</td>
+<td style="text-align: right;" id="24">2.3418</td>
+<td style="text-align: right;" id="24">3.24</td>
+<td style="text-align: right;" id="24">12.8475</td>
+<td id="24">-</td>
+</tr>
+<tr id="25">
+<td id="25">2026-07-29_13-17-01.bin</td>
+<td id="25">2026-07-29 13:17:01</td>
+<td style="text-align: right;" id="25">137.3014</td>
+<td id="25">MANUAL</td>
+<td id="25">MANUAL: 136.2s</td>
+<td style="text-align: right;" id="25">0.36191</td>
+<td style="text-align: right;" id="25">1.01</td>
+<td style="text-align: right;" id="25">9.1893</td>
+<td id="25">-</td>
+</tr>
+<tr id="26">
+<td id="26">2026-07-29_13-24-17.bin</td>
+<td id="26">2026-07-29 13:24:17</td>
+<td style="text-align: right;" id="26">512.7613</td>
+<td id="26">ACRO</td>
+<td id="26">ACRO: 256.9s, MANUAL: 249.7s, RTL: 5.0s</td>
+<td style="text-align: right;" id="26">1.2638</td>
+<td style="text-align: right;" id="26">4.83</td>
+<td style="text-align: right;" id="26">16.0109</td>
+<td id="26">ATC_STR_RAT_FF: 1.15 -&gt; 1.95</td>
+</tr>
+<tr id="27">
+<td id="27">log_7_2026-7-30-11-39-26.bin</td>
+<td id="27">2026-07-30 11:39:26</td>
+<td style="text-align: right;" id="27">1104.2455</td>
+<td id="27">MANUAL</td>
+<td id="27">MANUAL: 1081.9s, HOLD: 20.5s</td>
+<td style="text-align: right;" id="27">2.412</td>
+<td style="text-align: right;" id="27">10.13</td>
+<td style="text-align: right;" id="27">19.5022</td>
+<td id="27">-</td>
+</tr>
+<tr id="28">
+<td id="28">log_8_2026-7-30-12-22-36.bin</td>
+<td id="28">2026-07-30 12:22:36</td>
+<td style="text-align: right;" id="28">947.9987</td>
+<td id="28">MANUAL</td>
+<td id="28">MANUAL: 549.7s, ACRO: 396.8s</td>
+<td style="text-align: right;" id="28">2.5021</td>
+<td style="text-align: right;" id="28">10.47</td>
+<td style="text-align: right;" id="28">21.5249</td>
+<td id="28">-</td>
+</tr>
+<tr id="29">
+<td id="29">log_9_2026-7-30-13-44-14.bin</td>
+<td id="29">2026-07-30 13:44:14</td>
+<td style="text-align: right;" id="29">4194.1999</td>
+<td id="29">MANUAL</td>
+<td id="29">MANUAL: 3768.1s, AUTO: 416.9s, RTL: 8.1s</td>
+<td style="text-align: right;" id="29">1.5734</td>
+<td style="text-align: right;" id="29">9.65</td>
+<td style="text-align: right;" id="29">30.9332</td>
+<td id="29">ATC_STR_ANG_P: 1.2 -&gt; 0.5; WP_PIVOT_ANGLE: 0 -&gt; 4; WP_PIVOT_RATE: 45 -&gt; 12</td>
+</tr>
+<tr id="30">
+<td id="30">log_1_2026-8-18-12-00-30.bin</td>
+<td id="30">2026-08-18 12:00:30</td>
+<td style="text-align: right;" id="30">1483.3001</td>
+<td id="30">MANUAL</td>
+<td id="30">MANUAL: 1482.2s</td>
+<td style="text-align: right;" id="30">1.3803</td>
+<td style="text-align: right;" id="30">9.65</td>
+<td style="text-align: right;" id="30">18.1627</td>
+<td id="30">ATC_STR_ACC_MAX: 15 -&gt; 30; ATC_STR_RAT_IMAX: 1 -&gt; 0.3; ATC_STR_RAT_MAX: 15 -&gt; 10; ATC_STR_RAT_SMAX: 0 -&gt; 5; TURN_RADIUS: 0.9 -&gt; 12; WP_PIVOT_ANGLE: 4 -&gt; 0; WP_SPEED: 2 -&gt; 4</td>
+</tr>
+<tr id="31">
+<td id="31">log_2_2026-8-18-12-10-42.bin</td>
+<td id="31">2026-08-18 12:10:42</td>
+<td style="text-align: right;" id="31">534.0997</td>
+<td id="31">MANUAL</td>
+<td id="31">MANUAL: 533.0s</td>
+<td style="text-align: right;" id="31">0.54481</td>
+<td style="text-align: right;" id="31">1.64</td>
+<td style="text-align: right;" id="31">14.9918</td>
+<td id="31">-</td>
+</tr>
+<tr id="32">
+<td id="32">log_3_2026-8-18-12-32-38.bin</td>
+<td id="32">2026-08-18 12:32:38</td>
+<td style="text-align: right;" id="32">1252.2006</td>
+<td id="32">MANUAL</td>
+<td id="32">MANUAL: 1251.1s</td>
+<td style="text-align: right;" id="32">0.34741</td>
+<td style="text-align: right;" id="32">2.36</td>
+<td style="text-align: right;" id="32">14.6787</td>
+<td id="32">ANK_MAX_DIFF: 20 -&gt; 1</td>
+</tr>
+<tr id="33">
+<td id="33">log_4_2026-8-18-13-06-16.bin</td>
+<td id="33">2026-08-18 13:06:16</td>
+<td style="text-align: right;" id="33">10952754294083.81</td>
+<td id="33">MANUAL</td>
+<td id="33">MANUAL: 10952754292067.0s, GUIDED: 415.4s, HOLD: 53.1s</td>
+<td style="text-align: right;" id="33">1.8757</td>
+<td style="text-align: right;" id="33">5.98</td>
+<td style="text-align: right;" id="33">18.5797</td>
+<td id="33">-</td>
+</tr>
+<tr id="34">
+<td id="34">log_5_2026-8-18-13-23-52.bin</td>
+<td id="34">2026-08-18 13:23:52</td>
+<td style="text-align: right;" id="34">1000.7006</td>
+<td id="34">MANUAL</td>
+<td id="34">MANUAL: 674.1s, GUIDED: 291.1s, HOLD: 34.4s</td>
+<td style="text-align: right;" id="34">1.9867</td>
+<td style="text-align: right;" id="34">5.07</td>
+<td style="text-align: right;" id="34">14.9614</td>
+<td id="34">-</td>
+</tr>
+<tr id="35">
+<td id="35">log_6_2026-8-18-13-41-18.bin</td>
+<td id="35">2026-08-18 13:41:18</td>
+<td style="text-align: right;" id="35">516.3999</td>
+<td id="35">MANUAL</td>
+<td id="35">MANUAL: 402.2s, GUIDED: 110.4s</td>
+<td style="text-align: right;" id="35">1.8699</td>
+<td style="text-align: right;" id="35">5.14</td>
+<td style="text-align: right;" id="35">14.3519</td>
+<td id="35">-</td>
+</tr>
+<tr id="36">
+<td id="36">log_7_2026-8-18-13-59-12.bin</td>
+<td id="36">2026-08-18 13:59:12</td>
+<td style="text-align: right;" id="36">1057.7</td>
+<td id="36">MANUAL</td>
+<td id="36">MANUAL: 764.5s, GUIDED: 279.8s, HOLD: 12.3s</td>
+<td style="text-align: right;" id="36">1.8528</td>
+<td style="text-align: right;" id="36">6.31</td>
+<td style="text-align: right;" id="36">19.8213</td>
+<td id="36">-</td>
+</tr>
+<tr id="37">
+<td id="37">log_9_2026-8-18-14-15-00.bin</td>
+<td id="37">2026-08-18 14:15:00</td>
+<td style="text-align: right;" id="37">727.7996</td>
+<td id="37">MANUAL</td>
+<td id="37">MANUAL: 585.7s, GUIDED: 128.8s, HOLD: 10.0s</td>
+<td style="text-align: right;" id="37">1.6873</td>
+<td style="text-align: right;" id="37">9.3</td>
+<td style="text-align: right;" id="37">15.6567</td>
+<td id="37">-</td>
+</tr>
+<tr id="38">
+<td id="38">log_10_2026-8-18-14-21-34.bin</td>
+<td id="38">2026-08-18 14:21:34</td>
+<td style="text-align: right;" id="38">380.7987</td>
+<td id="38">MANUAL</td>
+<td id="38">MANUAL: 250.4s, GUIDED: 123.0s, HOLD: 6.3s</td>
+<td style="text-align: right;" id="38">1.7068</td>
+<td style="text-align: right;" id="38">4.27</td>
+<td style="text-align: right;" id="38">14.2013</td>
+<td id="38">-</td>
+</tr>
+<tr id="39">
+<td id="39">log_11_2026-8-18-14-40-20.bin</td>
+<td id="39">2026-08-18 14:40:20</td>
+<td style="text-align: right;" id="39">1093.6605</td>
+<td id="39">MANUAL</td>
+<td id="39">MANUAL: 682.8s, GUIDED: 390.2s, HOLD: 19.6s</td>
+<td style="text-align: right;" id="39">2.305</td>
+<td style="text-align: right;" id="39">6.57</td>
+<td style="text-align: right;" id="39">16.6053</td>
+<td id="39">-</td>
+</tr>
+<tr id="40">
+<td id="40">log_12_2026-8-18-14-44-02.bin</td>
+<td id="40">2026-08-18 14:44:02</td>
+<td style="text-align: right;" id="40">72.9999</td>
+<td id="40">MANUAL</td>
+<td id="40">MANUAL: 71.9s</td>
+<td style="text-align: right;" id="40">1.1569</td>
+<td style="text-align: right;" id="40">2.98</td>
+<td style="text-align: right;" id="40">18.29</td>
+<td id="40">-</td>
+</tr>
+<tr id="41">
+<td id="41">log_13_2026-8-18-14-52-32.bin</td>
+<td id="41">2026-08-18 14:52:32</td>
+<td style="text-align: right;" id="41">472.3993</td>
+<td id="41">MANUAL</td>
+<td id="41">MANUAL: 310.1s, GUIDED: 124.2s, HOLD: 37.0s</td>
+<td style="text-align: right;" id="41">2.0642</td>
+<td style="text-align: right;" id="41">8.21</td>
+<td style="text-align: right;" id="41">20.2873</td>
+<td id="41">ANK_MAX_DIFF: 1 -&gt; 20</td>
+</tr>
+<tr id="42">
+<td id="42">log_14_2026-8-18-15-11-02.bin</td>
+<td id="42">2026-08-18 15:11:02</td>
+<td style="text-align: right;" id="42">1108.5996</td>
+<td id="42">MANUAL</td>
+<td id="42">MANUAL: 1107.5s</td>
+<td style="text-align: right;" id="42">2.1583</td>
+<td style="text-align: right;" id="42">10.17</td>
+<td style="text-align: right;" id="42">34.36</td>
+<td id="42">-</td>
+</tr>
+<tr id="43">
+<td id="43">log_16_2026-8-18-15-24-14.bin</td>
+<td id="43">2026-08-18 15:24:14</td>
+<td style="text-align: right;" id="43">410.5999</td>
+<td id="43">MANUAL</td>
+<td id="43">MANUAL: 400.5s, RTL: 9.0s</td>
+<td style="text-align: right;" id="43">0.37422</td>
+<td style="text-align: right;" id="43">1.73</td>
+<td style="text-align: right;" id="43">17.3842</td>
+<td id="43">-</td>
+</tr>
+<tr id="44">
+<td id="44">log_1_2026-8-25-13-30-14.bin</td>
+<td id="44">2026-08-25 13:30:14</td>
+<td style="text-align: right;" id="44">7495898790096.798</td>
+<td id="44">MANUAL</td>
+<td id="44">MANUAL: 7495898781462.7s, AUTO: 1314.4s, ACRO: 297.0s, RTL: 87.8s, GUIDED: 14.0s</td>
+<td style="text-align: right;" id="44">1.5703</td>
+<td style="text-align: right;" id="44">10.23</td>
+<td style="text-align: right;" id="44">6.499970679203173e+33</td>
+<td id="44">ATC_STR_ANG_P: 0.5 -&gt; 3.7; ATC_STR_RAT_D: 0 -&gt; 0.38; ATC_STR_RAT_FF: 1.95 -&gt; 0; ATC_STR_RAT_FLTD: 0 -&gt; 1.2; ATC_STR_RAT_FLTE: 10 -&gt; 0; ATC_STR_RAT_I: 0.08 -&gt; 4.7; ATC_STR_RAT_IMAX: 0.3 -&gt; 0.5; ATC_STR_RAT_SMAX: 5 -&gt; 0; PSC_VEL_P: 1 -&gt; 0.3; WP_SPEED: 4 -&gt; 2.5</td>
+</tr>
+<tr id="45">
+<td id="45">log_2_2026-8-25-13-40-16.bin</td>
+<td id="45">2026-08-25 13:40:16</td>
+<td style="text-align: right;" id="45">309.1996</td>
+<td id="45">MANUAL</td>
+<td id="45">MANUAL: 308.1s</td>
+<td style="text-align: right;" id="45">0.88366</td>
+<td style="text-align: right;" id="45">1.58</td>
+<td style="text-align: right;" id="45">14.8092</td>
+<td id="45">-</td>
+</tr>
+<tr id="46">
+<td id="46">log_3_2026-8-25-13-50-26.bin</td>
+<td id="46">2026-08-25 13:50:26</td>
+<td style="text-align: right;" id="46">552.2002</td>
+<td id="46">GUIDED</td>
+<td id="46">GUIDED: 277.8s, MANUAL: 239.1s, HOLD: 33.0s</td>
+<td style="text-align: right;" id="46">1.6047</td>
+<td style="text-align: right;" id="46">2.64</td>
+<td style="text-align: right;" id="46">16.5774</td>
+<td id="46">-</td>
+</tr>
+<tr id="47">
+<td id="47">log_4_2026-8-25-14-05-28.bin</td>
+<td id="47">2026-08-25 14:05:28</td>
+<td style="text-align: right;" id="47">813.1996</td>
+<td id="47">MANUAL</td>
+<td id="47">MANUAL: 457.9s, GUIDED: 320.3s, HOLD: 32.9s</td>
+<td style="text-align: right;" id="47">1.7597</td>
+<td style="text-align: right;" id="47">2.86</td>
+<td style="text-align: right;" id="47">17.6831</td>
+<td id="47">-</td>
+</tr>
+<tr id="48">
+<td id="48">log_5_2026-8-25-14-24-40.bin</td>
+<td id="48">2026-08-25 14:24:40</td>
+<td style="text-align: right;" id="48">1135.7809</td>
+<td id="48">MANUAL</td>
+<td id="48">MANUAL: 721.1s, AUTO: 408.0s, GUIDED: 5.2s</td>
+<td style="text-align: right;" id="48">2.0975</td>
+<td style="text-align: right;" id="48">9.29</td>
+<td style="text-align: right;" id="48">23.3924</td>
+<td id="48">-</td>
+</tr>
+<tr id="49">
+<td id="49">log_6_2026-8-25-14-57-26.bin</td>
+<td id="49">2026-08-25 14:57:26</td>
+<td style="text-align: right;" id="49">1880.9385</td>
+<td id="49">MANUAL</td>
+<td id="49">MANUAL: 1879.8s</td>
+<td style="text-align: right;" id="49">2.5969</td>
+<td style="text-align: right;" id="49">9.82</td>
+<td style="text-align: right;" id="49">29.1864</td>
+<td id="49">-</td>
+</tr>
+<tr id="50">
+<td id="50">log_2_2026-8-27-11-34-16.bin</td>
+<td id="50">2026-08-27 11:34:16</td>
+<td style="text-align: right;" id="50">766</td>
+<td id="50">MANUAL</td>
+<td id="50">MANUAL: 764.9s</td>
+<td style="text-align: right;" id="50">2.1927</td>
+<td style="text-align: right;" id="50">7.86</td>
+<td style="text-align: right;" id="50">14.0667</td>
+<td id="50">-</td>
+</tr>
+<tr id="51">
+<td id="51">log_3_2026-8-27-12-12-30.bin</td>
+<td id="51">2026-08-27 12:12:30</td>
+<td style="text-align: right;" id="51">2087.7999</td>
+<td id="51">MANUAL</td>
+<td id="51">MANUAL: 1179.3s, ACRO: 525.4s, AUTO: 372.3s, GUIDED: 8.7s</td>
+<td style="text-align: right;" id="51">1.4055</td>
+<td style="text-align: right;" id="51">3.62</td>
+<td style="text-align: right;" id="51">20.8375</td>
+<td id="51">ATC_STR_RAT_P: 0.4 -&gt; 3.7</td>
+</tr>
+<tr id="52">
+<td id="52">log_4_2026-8-27-12-24-00.bin</td>
+<td id="52">2026-08-27 12:24:00</td>
+<td style="text-align: right;" id="52">669.7999</td>
+<td id="52">AUTO</td>
+<td id="52">AUTO: 424.0s, MANUAL: 241.3s</td>
+<td style="text-align: right;" id="52">1.9042</td>
+<td style="text-align: right;" id="52">2.71</td>
+<td style="text-align: right;" id="52">17.5293</td>
+<td id="52">PSC_VEL_P: 0.1 -&gt; 0.2</td>
+</tr>
+<tr id="53">
+<td id="53">log_6_2026-8-27-13-17-46.bin</td>
+<td id="53">2026-08-27 13:17:46</td>
+<td style="text-align: right;" id="53">1562.5013</td>
+<td id="53">MANUAL</td>
+<td id="53">MANUAL: 633.2s, GUIDED: 303.4s, AUTO: 293.8s, ACRO: 267.0s, HOLD: 54.5s, RTL: 9.5s</td>
+<td style="text-align: right;" id="53">1.907</td>
+<td style="text-align: right;" id="53">10.05</td>
+<td style="text-align: right;" id="53">20.7402</td>
+<td id="53">ATC_STR_RAT_D: 0.38 -&gt; 0.06; ATC_STR_RAT_FLTD: 1.2 -&gt; 2; ATC_STR_RAT_I: 4.7 -&gt; 3.2; ATC_STR_RAT_P: 3.7 -&gt; 2.2; PSC_VEL_P: 0.2 -&gt; 0.1; WP_JERK: 0 -&gt; 0.1</td>
+</tr>
+<tr id="54">
+<td id="54">log_7_2026-8-27-13-26-40.bin</td>
+<td id="54">2026-08-27 13:26:40</td>
+<td style="text-align: right;" id="54">457.5001</td>
+<td id="54">MANUAL</td>
+<td id="54">MANUAL: 435.1s, GUIDED: 21.3s</td>
+<td style="text-align: right;" id="54">1.2594</td>
+<td style="text-align: right;" id="54">9.14</td>
+<td style="text-align: right;" id="54">17.5557</td>
+<td id="54">-</td>
+</tr>
+<tr id="55">
+<td id="55">log_8_2026-8-27-13-33-54.bin</td>
+<td id="55">2026-08-27 13:33:54</td>
+<td style="text-align: right;" id="55">211.4014</td>
+<td id="55">MANUAL</td>
+<td id="55">MANUAL: 210.3s</td>
+<td style="text-align: right;" id="55">0.37121</td>
+<td style="text-align: right;" id="55">1.53</td>
+<td style="text-align: right;" id="55">14.7575</td>
+<td id="55">PSC_VEL_P: 0.1 -&gt; 0.2; WP_RADIUS: 10 -&gt; 5</td>
+</tr>
+<tr id="56">
+<td id="56">log_9_2026-8-27-14-37-46.bin</td>
+<td id="56">2026-08-27 14:37:46</td>
+<td style="text-align: right;" id="56">14740205713826.37</td>
+<td id="56">MANUAL</td>
+<td id="56">MANUAL: 14740205711963.4s, AUTO: 1734.0s, HOLD: 83.0s, GUIDED: 44.4s</td>
+<td style="text-align: right;" id="56">1.7323</td>
+<td style="text-align: right;" id="56">9.79</td>
+<td style="text-align: right;" id="56">25.2357</td>
+<td id="56">PSC_VEL_P: 0.2 -&gt; 0.1; WP_RADIUS: 5 -&gt; 15</td>
+</tr>
+<tr id="57">
+<td id="57">log_10_2026-8-27-14-56-02.bin</td>
+<td id="57">2026-08-27 14:56:02</td>
+<td style="text-align: right;" id="57">1083.719</td>
+<td id="57">MANUAL</td>
+<td id="57">MANUAL: 1053.5s, ACRO: 25.9s</td>
+<td style="text-align: right;" id="57">1.8829</td>
+<td style="text-align: right;" id="57">9.93</td>
+<td style="text-align: right;" id="57">24.0239</td>
+<td id="57">-</td>
+</tr>
+<tr id="58">
+<td id="58">2026-09-01 12-41-02.bin</td>
+<td id="58">2026-09-01 12:41:02</td>
+<td style="text-align: right;" id="58">84443019773.2238</td>
+<td id="58">MANUAL</td>
+<td id="58">MANUAL: 84443019098.1s, AUTO: 281.7s, ACRO: 244.0s, HOLD: 126.8s, RTL: 21.6s</td>
+<td style="text-align: right;" id="58">1.5873</td>
+<td style="text-align: right;" id="58">10.36</td>
+<td style="text-align: right;" id="58">28.7564</td>
+<td id="58">ATC_STR_RAT_MAX: 10 -&gt; 20; ATC_STR_RAT_D: 0.06 -&gt; 0.38; ATC_STR_RAT_FLTD: 2 -&gt; 1.2; ATC_STR_RAT_I: 3.2 -&gt; 4.7; ATC_STR_RAT_P: 2.2 -&gt; 3.7; PSC_VEL_P: 0.1 -&gt; 0.2</td>
+</tr>
+</tbody>
+</table>
+<h2 id="60">Changed parameters</h2>
+<table id="62">
+<thead>
+<tr id="62">
+<th id="62">Parameter</th>
+<th id="62">Value summary</th>
+</tr>
+</thead>
+<tbody>
+<tr id="64">
+<td id="64">GPS1_RATE_MS</td>
+<td id="64">log_38_2026-7-23-14-03-20.bin=500 -&gt; 200</td>
+</tr>
+<tr id="65">
+<td id="65">ATC_STR_RAT_I</td>
+<td id="65">log_41_2026-7-23-14-50-16.bin=0.12 -&gt; 0.08</td>
+</tr>
+<tr id="66">
+<td id="66">ATC_STR_RAT_MAX</td>
+<td id="66">log_41_2026-7-23-14-50-16.bin=15 -&gt; 25</td>
+</tr>
+<tr id="67">
+<td id="67">ATC_STR_RAT_P</td>
+<td id="67">log_42_2026-7-23-14-59-06.bin=0.3 -&gt; 0.2</td>
+</tr>
+<tr id="68">
+<td id="68">ATC_STR_RAT_P</td>
+<td id="68">log_43_2026-7-23-15-05-40.bin=0.2 -&gt; 0.4</td>
+</tr>
+<tr id="69">
+<td id="69">ATC_STR_ANG_P</td>
+<td id="69">log_46_2026-7-23-15-43-52.bin=2 -&gt; 1.2</td>
+</tr>
+<tr id="70">
+<td id="70">WP_RADIUS</td>
+<td id="70">log_48_2026-7-23-16-25-46.bin=5 -&gt; 10</td>
+</tr>
+<tr id="71">
+<td id="71">ATC_STR_RAT_FF</td>
+<td id="71">2026-07-29_12-33-09.bin=2.4 -&gt; 1.7</td>
+</tr>
+<tr id="72">
+<td id="72">ATC_STR_RAT_MAX</td>
+<td id="72">2026-07-29_12-33-09.bin=25 -&gt; 15</td>
+</tr>
+<tr id="73">
+<td id="73">ATC_STR_RAT_FF</td>
+<td id="73">2026-07-29_12-50-21.bin=1.7 -&gt; 1.15</td>
+</tr>
+<tr id="74">
+<td id="74">ATC_STR_RAT_FF</td>
+<td id="74">2026-07-29_13-24-17.bin=1.15 -&gt; 1.95</td>
+</tr>
+<tr id="75">
+<td id="75">ATC_STR_ANG_P</td>
+<td id="75">log_9_2026-7-30-13-44-14.bin=1.2 -&gt; 0.5</td>
+</tr>
+<tr id="76">
+<td id="76">WP_PIVOT_ANGLE</td>
+<td id="76">log_9_2026-7-30-13-44-14.bin=0 -&gt; 4</td>
+</tr>
+<tr id="77">
+<td id="77">WP_PIVOT_RATE</td>
+<td id="77">log_9_2026-7-30-13-44-14.bin=45 -&gt; 12</td>
+</tr>
+<tr id="78">
+<td id="78">ATC_STR_ACC_MAX</td>
+<td id="78">log_1_2026-8-18-12-00-30.bin=15 -&gt; 30</td>
+</tr>
+<tr id="79">
+<td id="79">ATC_STR_RAT_IMAX</td>
+<td id="79">log_1_2026-8-18-12-00-30.bin=1 -&gt; 0.3</td>
+</tr>
+<tr id="80">
+<td id="80">ATC_STR_RAT_MAX</td>
+<td id="80">log_1_2026-8-18-12-00-30.bin=15 -&gt; 10</td>
+</tr>
+<tr id="81">
+<td id="81">ATC_STR_RAT_SMAX</td>
+<td id="81">log_1_2026-8-18-12-00-30.bin=0 -&gt; 5</td>
+</tr>
+<tr id="82">
+<td id="82">TURN_RADIUS</td>
+<td id="82">log_1_2026-8-18-12-00-30.bin=0.9 -&gt; 12</td>
+</tr>
+<tr id="83">
+<td id="83">WP_PIVOT_ANGLE</td>
+<td id="83">log_1_2026-8-18-12-00-30.bin=4 -&gt; 0</td>
+</tr>
+<tr id="84">
+<td id="84">WP_SPEED</td>
+<td id="84">log_1_2026-8-18-12-00-30.bin=2 -&gt; 4</td>
+</tr>
+<tr id="85">
+<td id="85">ANK_MAX_DIFF</td>
+<td id="85">log_3_2026-8-18-12-32-38.bin=20 -&gt; 1</td>
+</tr>
+<tr id="86">
+<td id="86">ANK_MAX_DIFF</td>
+<td id="86">log_13_2026-8-18-14-52-32.bin=1 -&gt; 20</td>
+</tr>
+<tr id="87">
+<td id="87">ATC_STR_ANG_P</td>
+<td id="87">log_1_2026-8-25-13-30-14.bin=0.5 -&gt; 3.7</td>
+</tr>
+<tr id="88">
+<td id="88">ATC_STR_RAT_D</td>
+<td id="88">log_1_2026-8-25-13-30-14.bin=0 -&gt; 0.38</td>
+</tr>
+<tr id="89">
+<td id="89">ATC_STR_RAT_FF</td>
+<td id="89">log_1_2026-8-25-13-30-14.bin=1.95 -&gt; 0</td>
+</tr>
+<tr id="90">
+<td id="90">ATC_STR_RAT_FLTD</td>
+<td id="90">log_1_2026-8-25-13-30-14.bin=0 -&gt; 1.2</td>
+</tr>
+<tr id="91">
+<td id="91">ATC_STR_RAT_FLTE</td>
+<td id="91">log_1_2026-8-25-13-30-14.bin=10 -&gt; 0</td>
+</tr>
+<tr id="92">
+<td id="92">ATC_STR_RAT_I</td>
+<td id="92">log_1_2026-8-25-13-30-14.bin=0.08 -&gt; 4.7</td>
+</tr>
+<tr id="93">
+<td id="93">ATC_STR_RAT_IMAX</td>
+<td id="93">log_1_2026-8-25-13-30-14.bin=0.3 -&gt; 0.5</td>
+</tr>
+<tr id="94">
+<td id="94">ATC_STR_RAT_SMAX</td>
+<td id="94">log_1_2026-8-25-13-30-14.bin=5 -&gt; 0</td>
+</tr>
+<tr id="95">
+<td id="95">PSC_VEL_P</td>
+<td id="95">log_1_2026-8-25-13-30-14.bin=1 -&gt; 0.3</td>
+</tr>
+<tr id="96">
+<td id="96">WP_SPEED</td>
+<td id="96">log_1_2026-8-25-13-30-14.bin=4 -&gt; 2.5</td>
+</tr>
+<tr id="97">
+<td id="97">ATC_STR_RAT_P</td>
+<td id="97">log_3_2026-8-27-12-12-30.bin=0.4 -&gt; 3.7</td>
+</tr>
+<tr id="98">
+<td id="98">PSC_VEL_P</td>
+<td id="98">log_4_2026-8-27-12-24-00.bin=0.3 -&gt; 0.2</td>
+</tr>
+<tr id="99">
+<td id="99">ATC_STR_RAT_D</td>
+<td id="99">log_6_2026-8-27-13-17-46.bin=0.38 -&gt; 0.06</td>
+</tr>
+<tr id="100">
+<td id="100">ATC_STR_RAT_FLTD</td>
+<td id="100">log_6_2026-8-27-13-17-46.bin=1.2 -&gt; 2</td>
+</tr>
+<tr id="101">
+<td id="101">ATC_STR_RAT_I</td>
+<td id="101">log_6_2026-8-27-13-17-46.bin=4.7 -&gt; 3.2</td>
+</tr>
+<tr id="102">
+<td id="102">ATC_STR_RAT_P</td>
+<td id="102">log_6_2026-8-27-13-17-46.bin=3.7 -&gt; 2.2</td>
+</tr>
+<tr id="103">
+<td id="103">PSC_VEL_P</td>
+<td id="103">log_6_2026-8-27-13-17-46.bin=0.2 -&gt; 0.1</td>
+</tr>
+<tr id="104">
+<td id="104">WP_JERK</td>
+<td id="104">log_6_2026-8-27-13-17-46.bin=0 -&gt; 0.1</td>
+</tr>
+<tr id="105">
+<td id="105">PSC_VEL_P</td>
+<td id="105">log_8_2026-8-27-13-33-54.bin=0.1 -&gt; 0.2</td>
+</tr>
+<tr id="106">
+<td id="106">WP_RADIUS</td>
+<td id="106">log_8_2026-8-27-13-33-54.bin=10 -&gt; 5</td>
+</tr>
+<tr id="107">
+<td id="107">PSC_VEL_P</td>
+<td id="107">log_9_2026-8-27-14-37-46.bin=0.2 -&gt; 0.1</td>
+</tr>
+<tr id="108">
+<td id="108">WP_RADIUS</td>
+<td id="108">log_9_2026-8-27-14-37-46.bin=5 -&gt; 15</td>
+</tr>
+<tr id="109">
+<td id="109">ATC_STR_RAT_D</td>
+<td id="109">2026-09-01 12-41-02.bin=0.06 -&gt; 0.38</td>
+</tr>
+<tr id="110">
+<td id="110">ATC_STR_RAT_FLTD</td>
+<td id="110">2026-09-01 12-41-02.bin=2 -&gt; 1.2</td>
+</tr>
+<tr id="111">
+<td id="111">ATC_STR_RAT_I</td>
+<td id="111">2026-09-01 12-41-02.bin=3.2 -&gt; 4.7</td>
+</tr>
+<tr id="112">
+<td id="112">ATC_STR_RAT_MAX</td>
+<td id="112">2026-09-01 12-41-02.bin=10 -&gt; 20</td>
+</tr>
+<tr id="113">
+<td id="113">ATC_STR_RAT_P</td>
+<td id="113">2026-09-01 12-41-02.bin=2.2 -&gt; 3.7</td>
+</tr>
+<tr id="114">
+<td id="114">PSC_VEL_P</td>
+<td id="114">2026-09-01 12-41-02.bin=0.1 -&gt; 0.2</td>
+</tr>
+</tbody>
+</table>
+
+                </body>
+            </html>
+            

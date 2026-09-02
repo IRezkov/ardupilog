@@ -766,7 +766,7 @@ function keep = is_control_relevant_param(name)
 
     n = upper(char(string(name)));
 
-    ignorePatterns = {'BARO', 'STAT_', 'GPS_', 'COMPASS', 'MAG_', 'INS_', 'RCIN', 'RCOU', 'RSSI', 'BATT_', 'BAT_' , 'SYS_', 'LOG_', 'FS_', 'IMU', 'EKF', 'SCHED', 'PID_' };
+    ignorePatterns = {'BARO', 'STAT_', 'COMPASS', 'MAG_', 'INS_', 'RCIN', 'RCOU', 'RSSI', 'BATT_', 'BAT_' , 'SYS_', 'LOG_', 'FS_', 'IMU', 'EKF', 'SCHED', 'PID_' };
     for p = 1:numel(ignorePatterns)
         if contains(n, ignorePatterns{p})
             keep = false;
@@ -774,8 +774,7 @@ function keep = is_control_relevant_param(name)
         end
     end
 
-    relevantPrefixes = {'ATC_', 'ACRO', 'ANK', 'WP', 'PILOT_', 'CRUISE_', 'THR_', 'SERVO_', 'STEER', 'TURN', 'WPNAV_', 'NAV_', 'L1_', 'PSC_', 'ANGLE', 'RATE', 'MOT_', 'MAV_'};
-    relevantContains = {'_FF', '_P', '_I', '_D', '_RATE', '_ANGLE', '_THR', '_SPD', '_SPEED', '_RAT', '_STR'};
+    relevantPrefixes = {'ATC_', 'GPS', 'ACRO', 'ANK', 'WP', 'PILOT_', 'CRUISE_', 'THR_', 'SERVO_', 'STEER', 'TURN', 'WPNAV_', 'NAV_', 'L1_', 'PSC_', 'ANGLE', 'RATE', 'MOT_', 'MAV_'};
 
     keep = false;
     for p = 1:numel(relevantPrefixes)
@@ -784,13 +783,6 @@ function keep = is_control_relevant_param(name)
             return;
         end
     end
-
-    % for p = 1:numel(relevantContains)
-    %     if contains(n, relevantContains{p})
-    %         keep = true;
-    %         return;
-    %     end
-    % end
 end
 
 function summaryTable = attach_changed_params_to_summary(summaryTable, paramMaps)
