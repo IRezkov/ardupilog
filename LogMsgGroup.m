@@ -39,22 +39,20 @@ classdef LogMsgGroup < dynamicprops & matlab.mixin.Copyable
                 obj.fieldNameCell = strsplit(field_names_string,',');
             end
             
-            % RUT messages
-    %             "ANKL": ("QffBHIfffbbbBBBHBf",
-    %          "TimeUS,Target,Gas,Dir,RPM,RunMin,CurA,VoltV,PwrW,MTmp,CTmp,BTmp,SOC,Flags,Link,Faults,Lim,SMax"),
-    % "ANKR": ("QffBHIfffbbbBBBHBf",
-    %          "TimeUS,Target,Gas,Dir,RPM,RunMin,CurA,VoltV,PwrW,MTmp,CTmp,BTmp,SOC,Flags,Link,Faults,Lim,SMax"),
-    % "ANBL": ("QBBbifiHfBbBBH",
-    %          "TimeUS,BMSCnt,MinSOC,MaxT,PwrW,ChCur,ChPwr,ChTime,VoltV,SOC,BTmp,BLink,Chg,Faults"),
-    % "ANBR": ("QBBbifiHfBbBBH",
-    %          "TimeUS,BMSCnt,MinSOC,MaxT,PwrW,ChCur,ChPwr,ChTime,VoltV,SOC,BTmp,BLink,Chg,Faults"),
-            if strcmp(type_name, 'ANKL') || strcmp(type_name, 'ANKR')
-                format_string = 'QffBHIfffbbbBBBHBf';
-                obj.fieldNameCell = strsplit('TimeUS,Target,Gas,Dir,RPM,RunMin,CurA,VoltV,PwrW,MTmp,CTmp,BTmp,SOC,Flags,Link,Faults,Lim,SMax', ',');
-            end
-            if strcmp(type_name, 'ANBL') || strcmp(type_name, 'ANBR')
-                format_string = 'QBBbifiHfBbBBH';
-                obj.fieldNameCell = strsplit('TimeUS,BMSCnt,MinSOC,MaxT,PwrW,ChCur,ChPwr,ChTime,VoltV,SOC,BTmp,BLink,Chg,Faults', ',');
+            if any(strcmp(type_name, {'ANKL', 'ANKR', 'ANBL', 'ANBR'}))
+                if any(strcmp(type_name, {'ANKL', 'ANKR'}))
+                    recoveredFormat = 'QffBHIfffbbbBBBHBf';
+                    recoveredLabels = strsplit('TimeUS,Target,Gas,Dir,RPM,RunMin,CurA,VoltV,PwrW,MTmp,CTmp,BTmp,SOC,Flags,Link,Faults,Lim,SMax', ',');
+                else
+                    recoveredFormat = 'QBBbifiHfBbBBH';
+                    recoveredLabels = strsplit('TimeUS,BMSCnt,MinSOC,MaxT,PwrW,ChCur,ChPwr,ChTime,VoltV,SOC,BTmp,BLink,Chg,Faults', ',');
+                end
+
+                recoveredDataLength = sum(arrayfun(@formatLength, recoveredFormat));
+                if data_length - 3 >= recoveredDataLength
+                    format_string = recoveredFormat;
+                    obj.fieldNameCell = recoveredLabels;
+                end
             end
             % Python distinguishes the two SUTS layouts by the FMT length:
             % - 11 fields: SUTS (RPos/LPos/Wind)

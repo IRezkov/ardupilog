@@ -369,6 +369,15 @@ classdef Ardupilog < dynamicprops & matlab.mixin.Copyable
             if ~ismember(instanceFieldName, fields(logMsgGroup))
                 return
             end
+
+            instanceValues = logMsgGroup.(instanceFieldName);
+            if ~isnumeric(instanceValues) || ~isvector(instanceValues) || ...
+                    numel(instanceValues) ~= numel(logMsgGroup.LineNo)
+                warning('Ardupilog:InvalidInstanceField', ...
+                    'Skipping instance split for %s.%s: expected one numeric value per message.', ...
+                    logMsgGroup.name, instanceFieldName);
+                return
+            end
             
             instances = unique(logMsgGroup.(instanceFieldName));
             if length(instances)>1
@@ -989,4 +998,3 @@ function [messageName, fieldName] = splitMsgField(string)
     fieldName = stringCell{2};
     return;
 end
-
