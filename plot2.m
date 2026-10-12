@@ -647,8 +647,8 @@ end
 
 function actuators = build_plot2_boat_actuators(logObj, t0)
 actuators = struct( ...
-    'leftRudder', read_plot2_actuator_signal(logObj, 'RUDL', {'Act', 'Cmd'}, t0), ...
-    'rightRudder', read_plot2_actuator_signal(logObj, 'RUDR', {'Act', 'Cmd'}, t0), ...
+    'leftRudder', read_plot2_rudder_signal(logObj, 'LPos', 'RUDL', t0), ...
+    'rightRudder', read_plot2_rudder_signal(logObj, 'RPos', 'RUDR', t0), ...
     'leftMotorRpm', read_plot2_actuator_signal(logObj, 'ANKL', {'RPM'}, t0), ...
     'leftMotorDir', read_plot2_actuator_signal(logObj, 'ANKL', {'Dir'}, t0), ...
     'rightMotorRpm', read_plot2_actuator_signal(logObj, 'ANKR', {'RPM'}, t0), ...
@@ -658,6 +658,18 @@ allMotorRpm = [actuators.leftMotorRpm.values; actuators.rightMotorRpm.values];
 allMotorRpm = allMotorRpm(isfinite(allMotorRpm));
 if ~isempty(allMotorRpm)
     actuators.maxMotorRpm = max(abs(allMotorRpm));
+end
+end
+
+function signal = read_plot2_rudder_signal(logObj, sutsField, fallbackGroup, t0)
+signal = read_plot2_actuator_signal(logObj, 'SUTS', {sutsField}, t0);
+if ~isempty(signal.time)
+    if strcmp(sutsField, 'LPos')
+        signal.values = -signal.values;
+    end
+else
+    signal = read_plot2_actuator_signal( ...
+        logObj, fallbackGroup, {'Act', 'Cmd'}, t0);
 end
 end
 

@@ -23,6 +23,9 @@ for signalIndex = 1:numel(signalIds)
         unavailableIds{end + 1} = signalId; %#ok<AGROW>
         continue;
     end
+    if strcmp(signalId, 'SUTS.LPos')
+        signalValues = -double(signalValues);
+    end
 
     lineArgs = {'DisplayName', entry.label};
     if strcmp(entry.kind, 'target_error_north')
