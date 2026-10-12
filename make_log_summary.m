@@ -3,6 +3,12 @@
 % =========================
 global DEBUG_MAX_LOGS MIN_DURATION_SEC MIN_SPEED_MPS MIN_THROTTLE_OUT
 
+rootDir = uigetdir(pwd, 'Выберите рабочую папку с логами');
+if isequal(rootDir, 0)
+    error('make_log_summary:FolderSelectionCancelled', ...
+        'Выбор рабочей папки отменён.');
+end
+
 scriptDir = fileparts(mfilename('fullpath'));
 
 % сначала проверим наличие папки functions
@@ -18,15 +24,11 @@ MIN_DURATION_SEC = 20;   % minimum useful log duration
 MIN_SPEED_MPS = 1;       % minimum speed to count as movement
 MIN_THROTTLE_OUT = 0.05; % minimum throttle output to count as active control
 
-rootDir = pwd;
 outDir = rootDir;
 maxLogs = DEBUG_MAX_LOGS;
 
 global DEBUG_MAX_LOGS MIN_DURATION_SEC MIN_SPEED_MPS MIN_THROTTLE_OUT
 
-if isempty(rootDir)
-    rootDir = pwd;
-end
 if isempty(outDir)
     outDir = rootDir;
 end
