@@ -1,6 +1,5 @@
 function highlightLine(lg, ev)
     clickedLine = ev.Peer;
-    lines = lg.UserData.Lines;
     highlighted = lg.UserData.Highlighted;
     
     % Цвета для 4 линий: красный, зелёный, синий, оранжевый
@@ -9,32 +8,27 @@ function highlightLine(lg, ev)
               0 0 1; ...
               1 0.6 0.2];
 
-    % Сохраняем исходные параметры линии и базовое имя для курсора.
+    % Сохраняем исходные параметры линии.
     if isempty(clickedLine.UserData.OrigLineWidth)
         clickedLine.UserData.OrigLineWidth = clickedLine.LineWidth;
     end
     if isempty(clickedLine.UserData.OrigColor)
         clickedLine.UserData.OrigColor = clickedLine.Color;
     end
-    if ~isfield(clickedLine.UserData, 'BaseDisplayName')
-        clickedLine.UserData.BaseDisplayName = clickedLine.DisplayName;
-    end
-
     % Если кликнули по уже подсвеченной — снимаем подсветку
     for i = numel(highlighted):-1:1
         if isequal(highlighted(i), clickedLine)
             clickedLine.LineWidth = clickedLine.UserData.OrigLineWidth;
             clickedLine.Color      = clickedLine.UserData.OrigColor;
-            clickedLine.DisplayName = clickedLine.UserData.BaseDisplayName;
             highlighted(i) = [];
             
             % Переназначаем цвета оставшимся
             for j = 1:numel(highlighted)
                 highlighted(j).LineWidth = 4;
                 highlighted(j).Color = colors(j, :);
-                highlighted(j).DisplayName = highlighted(j).UserData.BaseDisplayName;
             end
             lg.UserData.Highlighted = highlighted;
+            restoreLegendAndAxesPosition(lg);
             return;
         end
     end
@@ -43,7 +37,6 @@ function highlightLine(lg, ev)
     if numel(highlighted) >= 4
         highlighted(1).LineWidth = highlighted(1).UserData.OrigLineWidth;
         highlighted(1).Color      = highlighted(1).UserData.OrigColor;
-        highlighted(1).DisplayName = highlighted(1).UserData.BaseDisplayName;
         highlighted(1) = [];
     end
 
@@ -59,6 +52,10 @@ function highlightLine(lg, ev)
 
     lg.UserData.Highlighted = highlighted;
 
+    restoreLegendAndAxesPosition(lg);
+end
+
+function restoreLegendAndAxesPosition(lg)
     if isfield(lg.UserData, 'FixedAxesPosition')
         axesHandle = ancestor(lg, 'axes');
         if ~isempty(axesHandle) && isvalid(axesHandle)

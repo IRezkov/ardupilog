@@ -146,10 +146,14 @@ signalFigure.UserData.plot2ProfileSignals = activeProfile.signalIds;
 signalFigure.UserData.plot2UnavailableSignals = unavailableSignalIds;
 title(log.fileName,'interpreter','none');
 
+signalAxes.Units = 'normalized';
+lgd.Units = 'normalized';
+lgd.Location = 'none';
 fixedAxesPosition = get(signalAxes, 'Position');
 signalAxes.UserData.FixedPosition = fixedAxesPosition;
 lgd.UserData.FixedAxesPosition = fixedAxesPosition;
 lgd.UserData.FixedPosition = get(lgd, 'Position');
+lgd.Position = lgd.UserData.FixedPosition;
 
 % Линии режимов и сообщения не зависят от выбранного профиля.
 if isprop(log, 'MODE') && ~isempty(log.MODE) && ...

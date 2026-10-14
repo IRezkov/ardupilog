@@ -51,6 +51,12 @@ function update_cursor_tool(signalFigure, requestedTime)
             end
         end
         data.legend.String = legendStrings;
+        if isfield(data.legend.UserData, 'FixedAxesPosition')
+            data.axes.Position = data.legend.UserData.FixedAxesPosition;
+        end
+        if isfield(data.legend.UserData, 'FixedPosition')
+            data.legend.Position = data.legend.UserData.FixedPosition;
+        end
         data.lastLegendUpdate = currentClock;
     end
 
