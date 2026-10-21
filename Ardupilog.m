@@ -10,6 +10,9 @@ classdef Ardupilog < dynamicprops & matlab.mixin.Copyable
         totalLogMsgs = 0; % Total number of messages of the original log
         msgFilter = []; % Storage for the msgIds/msgNames desired for parsing
         numMsgs = 0; % Number of messages included in this log
+
+        % === New property: statistics table ===
+        msgStats = table(); % table with columns: Name | MsgId | Count | MsgLen | TotalBytes
     end
     properties (Access = private)
         fileID = -1;
@@ -85,10 +88,11 @@ classdef Ardupilog < dynamicprops & matlab.mixin.Copyable
                     end
                 end
             end
-            
-            % === После того, как все вычисления, основанные на полях (например GPS), выполнены,
-            % удалим пустые группы. Это предотвращает ошибки из-за преждевременного удаления. ===
+            % Remove empty groups AFTER we've used them for bootTimeUTC etc.
             obj = obj.deleteEmptyMsgs();
+
+            % Build message statistics table
+            obj.buildMsgStats();
 
             % Clear out the (temporary) properties
             obj.log_data = char(0);
@@ -98,9 +102,18 @@ classdef Ardupilog < dynamicprops & matlab.mixin.Copyable
         end
                
         function delete(obj)
-            % Probably won't ever be open, but close the file just in case
-            if ~isempty(openedFiles) && any(openedFiles==obj.fileID)
-                fclose(obj.fileID);
+            % Закрыть файл, если он открыт. (устаревающий fopen('all') заменён с попыткой
+            % использовать openedFiles() при наличии)
+            try
+                openIDs = openedFiles(); % modern MATLAB
+            catch
+                openIDs = fopen('all'); % fallback
+            end
+            if ~isempty(openIDs) && any(openIDs == obj.fileID)
+                try
+                    fclose(obj.fileID);
+                catch
+                end
             end
         end
         
@@ -188,40 +201,43 @@ classdef Ardupilog < dynamicprops & matlab.mixin.Copyable
             end
             
             % Construct the LineNo for the whole log
-            LineNo_ndx_vec = sort(vertcat(obj.valid_msgheader_cell{:,2}));
-            LineNo_vec = [1:length(LineNo_ndx_vec)]';
-            % Record the total number of log messages
-            obj.totalLogMsgs = LineNo_vec(end);
-            % Iterate over all the messages
-            for i = 1:size(obj.valid_msgheader_cell,1)
-                % Find msgName from msgId in 1st column
-                msgId = obj.valid_msgheader_cell{i,1};
-                row_in_fmt_cell = vertcat(obj.fmt_cell{:,1})==msgId;
-                msgName = obj.fmt_cell{row_in_fmt_cell,2};
-                
-                % Check if this message was meant to be filtered
-                if iscellstr(obj.msgFilter)
-                    if ~isempty(obj.msgFilter) && ~ismember(msgName,obj.msgFilter)
-                        continue;
-                    end
-                elseif isnumeric(obj.msgFilter)
-                    if ~isempty(obj.msgFilter) && ~ismember(msgId,obj.msgFilter)
-                        continue;
-                    end
-                else
-                    error('msgFilter type should have passed validation by now and I shouldnt be here');
-                end
+            if ~isempty(obj.valid_msgheader_cell)
+                LineNo_ndx_vec = sort(vertcat(obj.valid_msgheader_cell{:,2}));
+                LineNo_vec = [1:length(LineNo_ndx_vec)]';
+                % Record the total number of log messages
+                obj.totalLogMsgs = LineNo_vec(end);
+                % Iterate over all the messages
+                for i = 1:size(obj.valid_msgheader_cell,1)
+                    % Find msgName from msgId in 1st column
+                    msgId = obj.valid_msgheader_cell{i,1};
+                    row_in_fmt_cell = vertcat(obj.fmt_cell{:,1})==msgId;
+                    msgName = obj.fmt_cell{row_in_fmt_cell,2};
 
-                % Pick out the correct line numbers
-                msg_LineNo = LineNo_vec(ismember(LineNo_ndx_vec, obj.valid_msgheader_cell{i,2}));
-                
-                % Write to the LogMsgGroup
-                obj.(msgName).setLineNo(msg_LineNo);
-                % Check if message is instanced. If yes, create the other
-                % instances too.
-                obj.addLogMsgGroupInstances(obj.(msgName));
+                    % Check if this message was meant to be filtered
+                    if iscellstr(obj.msgFilter)
+                        if ~isempty(obj.msgFilter) && ~ismember(msgName,obj.msgFilter)
+                            continue;
+                        end
+                    elseif isnumeric(obj.msgFilter)
+                        if ~isempty(obj.msgFilter) && ~ismember(msgId,obj.msgFilter)
+                            continue;
+                        end
+                    else
+                        error('msgFilter type should have passed validation by now and I shouldnt be here');
+                    end
+
+                    % Pick out the correct line numbers
+                    msg_LineNo = LineNo_vec(ismember(LineNo_ndx_vec, obj.valid_msgheader_cell{i,2}));
+
+                    % Write to the LogMsgGroup
+                    obj.(msgName).setLineNo(msg_LineNo);
+                    % Check if message is instanced. If yes, create the other
+                    % instances too.
+                    obj.addLogMsgGroupInstances(obj.(msgName));
+                end
+            else
+                obj.totalLogMsgs = 0;
             end
-            
             % Update the number of actual included messages
             propNames = properties(obj);
             for i = 1:length(propNames)
@@ -529,7 +545,9 @@ classdef Ardupilog < dynamicprops & matlab.mixin.Copyable
             % the GMS data (miliseconds in GPS week). Because this conflicts with
             % the usual "TimeMS" data which is the miliseconds since boot, that
             % data is instead confusingly name-changed to GPS.T
-            if isprop(obj.GPS, 'TimeUS') % This is a typical Ardupilot logs
+            if ~isprop(obj, 'GPS')
+                return;
+            elseif isprop(obj.GPS, 'TimeUS') % This is a typical Ardupilot log
                 timestr = 'TimeUS';
                 timeconvert = 1;
             elseif isprop(obj.GPS, 'TimeMS') || isprop(obj.GPS, 'T') % This is one of the old Solo logs
@@ -662,7 +680,7 @@ classdef Ardupilog < dynamicprops & matlab.mixin.Copyable
         % This returns an indexed portion (a "slice") of an Ardupilog
         % Example:
         %    log_during_cruise = Log.getSlice([t_begin_cruise, t_end_cruise], 'TimeUS')
-        %  will return a smaller Ardupilog, only containing log data between
+        %  will return a smaller Ardupilog, only содержащий log data between
         %  TimeUS values greater than t_begin_cruise and less than t_end_cruise.
 
             % Check if input argument order was accidentally reversed
@@ -693,30 +711,63 @@ classdef Ardupilog < dynamicprops & matlab.mixin.Copyable
                     slice.numMsgs = slice.numMsgs + size(slice.(propertyName).LineNo, 1);
                 end
             end
+
+            slice = slice.deleteEmptyMsgs();
         end
         
         function newlog = deleteEmptyMsgs(obj)
         % Delete any logMsgGroups which are empty
         % Implemented by creating a new object and copying non-empty msgs
         % because once created, properties cannot be deleted
-        newlog = Ardupilog('~'); % Create a new emtpy log
-        
-        propertyNames = properties(obj);
-        newlog.msgsContained = {};
-        for i = 1:length(propertyNames)
-            propertyName = propertyNames{i};
-            if ~isa(obj.(propertyName),'LogMsgGroup') % Copy anything else except LogMsgGroups
-                newlog.(propertyName) = obj.(propertyName);
-            else % Check if the LogMsgGroup is emtpy
-                if isempty(obj.(propertyName).LineNo) % Choosing a field which will always exist
-                    % Do nothing
-                else
-                    addprop(newlog, propertyName);
-                    newlog.(propertyName) = obj.(propertyName);
-                    newlog.msgsContained{end+1} = propertyName;
+            newlog = Ardupilog('~'); % Create a new empty log
+
+            propertyNames = properties(obj);
+
+            % Copy metadata, retaining msgStats so message lengths remain available
+            for i = 1:length(propertyNames)
+                propertyName = propertyNames{i};
+                if ~isa(obj.(propertyName),'LogMsgGroup')
+                    if strcmp(propertyName, 'msgsContained') || strcmp(propertyName, 'numMsgs')
+                        continue;
+                    else
+                        newlog.(propertyName) = obj.(propertyName);
+                    end
                 end
             end
-        end
+
+            % Now add non-empty LogMsgGroups
+            for i = 1:length(propertyNames)
+                propertyName = propertyNames{i};
+                if isa(obj.(propertyName), 'LogMsgGroup')
+                    try
+                        ln = obj.(propertyName).LineNo;
+                    catch
+                        ln = [];
+                    end
+                    if ~isempty(ln)
+                        addprop(newlog, propertyName);
+                        newlog.(propertyName) = obj.(propertyName);
+                    end
+                end
+            end
+
+            % Rebuild msgsContained and numMsgs from actual properties in newlog
+            newProps = properties(newlog);
+            newlog.msgsContained = {};
+            newlog.numMsgs = 0;
+            for i = 1:length(newProps)
+                pn = newProps{i};
+                if isa(newlog.(pn), 'LogMsgGroup')
+                    newlog.msgsContained{end+1} = pn;
+                    ln = newlog.(pn).LineNo;
+                    if ~isempty(ln)
+                        newlog.numMsgs = newlog.numMsgs + length(ln);
+                    end
+                end
+            end
+
+            % Rebuild msgStats for newlog as well
+            newlog.buildMsgStats();
         end
         
         function newlog = filterMsgs(obj,msgFilter)
@@ -747,7 +798,7 @@ classdef Ardupilog < dynamicprops & matlab.mixin.Copyable
 
             newlog = copy(obj); % Create the new log object
             newlog.msgFilter = msgFilter; % Store the filter that yielded this log
-            deletedMsgNames = repmat({''}, 1, 1);
+            deletedMsgNames = {};
             % Set the LineNos of any messages due for deletion to empty
             for i = 1:length(msgNames)
                 msgName = msgNames{i};
@@ -779,6 +830,8 @@ classdef Ardupilog < dynamicprops & matlab.mixin.Copyable
                 msgName = newMsgNames{i};
                 newlog.numMsgs = newlog.numMsgs + length(newlog.(msgName).LineNo);
             end
+
+            newlog.buildMsgStats();
         
         end
         
@@ -809,8 +862,6 @@ classdef Ardupilog < dynamicprops & matlab.mixin.Copyable
             end
             fclose(fid);
         end
-        
-        
         function label = getLabel(obj, msgFieldName)
         % Get a text label for a message field
         % INPUTS:
@@ -957,13 +1008,10 @@ classdef Ardupilog < dynamicprops & matlab.mixin.Copyable
         
         function newObj = copyElement(obj)
         % Copy function - replacement for matlab.mixin.Copyable.copy() to create object copies
-        % Found from somewhere in the internet
             try
-                % R2010b or newer - directly in memory (faster)
                 objByteArray = getByteStreamFromArray(obj);
                 newObj = getArrayFromByteStream(objByteArray);
             catch
-                % R2010a or earlier - serialize via temp file (slower)
                 fname = [tempname '.mat'];
                 save(fname, 'obj');
                 newObj = load(fname);
@@ -973,7 +1021,94 @@ classdef Ardupilog < dynamicprops & matlab.mixin.Copyable
         end
         
     end %methods
+
+    methods (Access = private)
+        function buildMsgStats(obj)
+        % Build a table of message statistics: Name | MsgId | Count | MsgLen | TotalBytes
+            names = {};
+            ids = [];
+            counts = [];
+            msglens = [];
+            totalbytes = [];
+
+            % If no msgsContained, create empty table
+            if isempty(obj.msgsContained)
+                obj.msgStats = table(strings(0, 1), zeros(0, 1), zeros(0, 1), ...
+                    zeros(0, 1), zeros(0, 1), ...
+                    'VariableNames', {'Name','MsgId','Count','MsgLen','TotalBytes'});
+                return;
+            end
+
+            for k = 1:length(obj.msgsContained)
+                name = obj.msgsContained{k};
+                % default values
+                cnt = 0;
+                mid = NaN;
+                mlen = NaN;
+
+                % get count (LineNo length) if group exists and has LineNo
+                if isprop(obj, name) && isa(obj.(name),'LogMsgGroup')
+                    try
+                        ln = obj.(name).LineNo;
+                        if ~isempty(ln)
+                            cnt = length(ln);
+                        else
+                            cnt = 0;
+                        end
+                    catch
+                        cnt = 0;
+                    end
+                    % try to get message id from group if present
+                    try
+                        mid = obj.(name).typeNumID;
+                    catch
+                        mid = NaN;
+                    end
+                    try
+                        mlen = double(obj.(name).data_len);
+                    catch
+                        mlen = NaN;
+                    end
+                end
+
+                % Fall back to FMT when a group does not expose its length.
+                if isnan(mlen) && ~isempty(obj.fmt_cell)
+                    match = find(strcmp(obj.fmt_cell(:,2), name), 1);
+                    if ~isempty(match)
+                        mlen = obj.fmt_cell{match, 3};
+                    end
+                elseif ~isempty(obj.msgStats) && ...
+                        ismember('Name', obj.msgStats.Properties.VariableNames)
+                    match = find(obj.msgStats.Name == string(name), 1);
+                    if ~isempty(match)
+                        mlen = obj.msgStats.MsgLen(match);
+                    end
+                end
+
+                names{end+1,1} = name;
+                ids(end+1,1) = mid;
+                counts(end+1,1) = cnt;
+                msglens(end+1,1) = mlen;
+                if ~isnan(mlen)
+                    totalbytes(end+1,1) = double(cnt) * double(mlen);
+                else
+                    totalbytes(end+1,1) = NaN;
+                end
+            end
+
+            % Build table with columns in requested order and set 3rd col = Count
+            T = table(names, ids, counts, msglens, totalbytes, ...
+                'VariableNames', {'Name','MsgId','Count','MsgLen','TotalBytes'});
+
+            % Ensure proper data types
+            T.Name = string(T.Name);
+
+            obj.msgStats = T;
+        end
+    end
+
 end %classdef Ardupilog
+
 
 function string = trimTail(string)
 % Remove any trailing space (zero-chars)
