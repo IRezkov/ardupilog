@@ -1,9 +1,16 @@
-function zoomToMode(src, ~, modeTimes, durations)
+function zoomToMode(src, ~, modeTimes, durations, modeTrackLengths, trackLengthText)
     idx     = src.Value;
     tStart  = modeTimes(idx);
     tDur    = durations(idx);
     tStop   = tStart + tDur;
     margin  = 0.05 * tDur;
+
+    if nargin >= 6 && ~isempty(trackLengthText) && isgraphics(trackLengthText)
+        if nargin >= 5 && idx <= numel(modeTrackLengths)
+            trackLengthText.String = sprintf('Track length: %s', ...
+                format_track_length(modeTrackLengths(idx)));
+        end
+    end
 
     xlim(gca, [tStart - margin, tStop + margin]);
 
@@ -77,6 +84,10 @@ function zoomToMode(src, ~, modeTimes, durations)
         ud.ekfTrack = gobjects(0);
         ud.ekfStart = gobjects(0);
         ud.ekfEnd = gobjects(0);
+        unitName = 'km/h';
+        if isfield(ud, 'speedUnit')
+            unitName = ud.speedUnit;
+        end
         if isfield(ud, 'ekfTimeS') && ~isempty(ud.ekfTimeS)
             ekfMask = ud.ekfTimeS >= tStart & ud.ekfTimeS <= tStop;
             ekfLatSeg = ud.ekfLat(ekfMask);
@@ -87,15 +98,20 @@ function zoomToMode(src, ~, modeTimes, durations)
             ekfLngSeg = ekfLngSeg(validEkf);
             ekfSpeedSeg = ekfSpeedSeg(validEkf);
             if numel(ekfLatSeg) > 1
-                speedMin = min(ekfSpeedSeg);
-                speedMax = max(ekfSpeedSeg);
+                unitName = 'km/h';
+                if isfield(ud, 'speedUnit')
+                    unitName = ud.speedUnit;
+                end
+                ekfSpeedSegForMap = convert_speed_for_unit(ekfSpeedSeg, unitName);
+                speedMin = min(ekfSpeedSegForMap);
+                speedMax = max(ekfSpeedSegForMap);
                 if speedMin == speedMax
                     padding = max(abs(speedMin) * 0.1, 1);
                 else
                     padding = 0.1 * (speedMax - speedMin);
                 end
                 clim(ud.gax, [speedMin - padding speedMax + padding]);
-                ud.ekfTrack = geoscatter(ud.gax, ekfLatSeg, ekfLngSeg, 10, ekfSpeedSeg, 'filled');
+                ud.ekfTrack = geoscatter(ud.gax, ekfLatSeg, ekfLngSeg, 10, ekfSpeedSegForMap, 'filled');
                 ud.ekfStart = geoscatter(ud.gax, ekfLatSeg(1), ekfLngSeg(1), 50, 'g', 'filled');
                 ud.ekfEnd = geoscatter(ud.gax, ekfLatSeg(end), ekfLngSeg(end), 50, 'w', 'filled');
                 uistack([ud.ekfTrack, ud.ekfStart, ud.ekfEnd], 'top');
@@ -105,9 +121,10 @@ function zoomToMode(src, ~, modeTimes, durations)
         % Восстанавливаем colorbar, если он пропал
         if isfield(ud, 'cb') && isvalid(ud.cb)
             ud.cb.Visible = 'on';
+            ud.cb.Label.String = speed_unit_label(unitName);
         else
             ud.cb = colorbar(ud.gax);
-            ud.cb.Label.String = 'Скорость, км/ч';
+            ud.cb.Label.String = speed_unit_label(unitName);
             ud.cb.Label.FontSize = 9;
         end
 

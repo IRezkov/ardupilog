@@ -93,6 +93,17 @@ switch entry.kind
         if strcmp(entry.kind, 'speed_kmh') || strcmp(entry.kind, 'des_speed_kmh')
             signalValues = signalValues * 3.6;
         end
+    case {'gps_speed_ms', 'gps_speed_kmh'}
+        sourceValues = get_message_field(message, 'Spd');
+        if isempty(sourceValues) || numel(sourceValues) ~= numel(timeValues)
+            return;
+        end
+        keep = find_time_outliers(message, [], false);
+        timeValues = timeValues(keep);
+        signalValues = sourceValues(keep);
+        if strcmp(entry.kind, 'gps_speed_kmh')
+            signalValues = signalValues * 3.6;
+        end
     case 'steer_out_scaled'
         signalValues = get_message_field(message, entry.field) ./ 450;
     case {'rpm_left_scaled', 'rpm_right_scaled'}

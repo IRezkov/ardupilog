@@ -212,18 +212,34 @@ if isprop(log, 'MODE') && ~isempty(log.MODE) && ...
     end
 end
 
+modeTrackLengths = calculate_mode_track_lengths(log, t0, modeTimes, durations);
+
 if isempty(modeLabels)
     uic = uicontrol('Style', 'popup', 'Units', 'normalized', ...
         'String', {'No modes'}, 'Position', [0.01, 0.95, 0.30, 0.035], ...
         'FontSize', 9, 'Enable', 'off');
+    trackLengthText = uicontrol('Style', 'text', 'Units', 'normalized', ...
+        'String', 'Track length: unavailable', 'Position', [0.32, 0.95, 0.20, 0.035], ...
+        'FontSize', 9, 'HorizontalAlignment', 'left');
 else
+    trackLengthText = uicontrol('Style', 'text', 'Units', 'normalized', ...
+        'String', sprintf('Track length: %s', format_track_length(modeTrackLengths(1))), ...
+        'Position', [0.32, 0.95, 0.20, 0.035], ...
+        'FontSize', 9, 'HorizontalAlignment', 'left');
     uic = uicontrol('Style', 'popup', ...
         'Units', 'normalized', ...
         'String', cellstr(modeLabels), ...
         'Position', [0.01, 0.95, 0.30, 0.035], ...
         'FontSize', 9, ...
-        'Callback', @(src, ev) zoomToMode(src, ev, modeTimes, durations));
+        'Callback', @(src, ev) zoomToMode(src, ev, modeTimes, durations, ...
+            modeTrackLengths, trackLengthText));
 end
+
+speedUnitControl = uicontrol('Style', 'popup', 'Units', 'normalized', ...
+    'String', {'km/h', 'm/s'}, 'Value', 1, ...
+    'Position', [0.53, 0.95, 0.10, 0.035], ...
+    'FontSize', 9, 'Callback', @(src, ev) set_plot2_speed_unit(src, ev, uic));
+speedUnitControl.UserData = uic.UserData;
 
 
 % карта
@@ -253,7 +269,7 @@ if hasGPS
     gpsLng = double(gpsGroup.Lng(1:gpsPositionCount));
     gpsStatus = double(gpsGroup.Status(1:gpsPositionCount));
     gpsTimeS = double(gpsGroup.TimeS(1:gpsPositionCount)) - t0;
-    gpsSpeed = double(gpsGroup.Spd(1:gpsPositionCount)) * 3.6;
+    gpsSpeed = double(gpsGroup.Spd(1:gpsPositionCount));
     gpsValidMask = isfinite(gpsLat) & isfinite(gpsLng) & ...
         abs(gpsLat) <= 90 & abs(gpsLng) <= 180 & ...
         isfinite(gpsStatus) & gpsStatus >= 3;
@@ -341,6 +357,7 @@ if hasGPS
     uic.UserData.gpsLat   = gpsLat;
     uic.UserData.gpsLng   = gpsLng;
     uic.UserData.gpsSpeed = gpsSpeed;
+    uic.UserData.speedUnit = 'km/h';
     uic.UserData.ekfTimeS = [];
     uic.UserData.ekfLat   = [];
     uic.UserData.ekfLng   = [];
@@ -499,7 +516,7 @@ else
         ekfLon = ekfLon(validIdx);
         ekfSpeed = [];
         if isprop(xkf, 'VN') && isprop(xkf, 'VE')
-            ekfSpeed = hypot(double(xkf.VN(validIdx)), double(xkf.VE(validIdx))) * 3.6;
+            ekfSpeed = hypot(double(xkf.VN(validIdx)), double(xkf.VE(validIdx)));
         end
         if isempty(ekfSpeed)
             ekfSpeed = nan(size(ekfLat));
@@ -515,7 +532,16 @@ else
             % gax = geoaxes('Basemap', 'Satellite'); %тест
             % hold(gax, 'on');
             
-            uic.UserData.ekfTrack = geoscatter(gax, ekfLat, ekfLon, 10, ekfSpeed, 'filled');
+            ekfSpeedForMap = convert_speed_for_unit(ekfSpeed, 'km/h');
+            uic.UserData.ekfTrack = geoscatter(gax, ekfLat, ekfLon, 10, ekfSpeedForMap, 'filled');
+            finiteEkfSpeed = ekfSpeedForMap(isfinite(ekfSpeedForMap));
+            if ~isempty(finiteEkfSpeed)
+                ekfSpeedMin = min(finiteEkfSpeed);
+                ekfSpeedMax = max(finiteEkfSpeed);
+                ekfSpeedPadding = max(0.1 * (ekfSpeedMax - ekfSpeedMin), ...
+                    max(abs(ekfSpeedMin) * 0.1, 1));
+                caxis(gax, [ekfSpeedMin - ekfSpeedPadding, ekfSpeedMax + ekfSpeedPadding]);
+            end
             
             % Если хочешь добавить маркеры в начале/конце
             uic.UserData.ekfStart = geoscatter(gax, ekfLat(1), ekfLon(1), 50, 'w', 'filled'); % Старт - белый

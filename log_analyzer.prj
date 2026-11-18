@@ -1,0 +1,215 @@
+<deployment-project plugin="plugin.ezdeploy" plugin-version="1.0">
+  <configuration build-checksum="3032535724" file="D:\copter\ardupilog-master\ardupilog.git\log_analyzer.prj" location="D:\copter\ardupilog-master\ardupilog.git" name="log_analyzer" preferred-package-location="D:\copter\ardupilog-master\ardupilog.git\log_analyzer\for_redistribution" preferred-package-type="package.type.exe" target="target.ezdeploy.standalone" target-name="Application Compiler">
+    <param.appname>log_analyzer</param.appname>
+    <param.icon>${PROJECT_ROOT}\log_analyzer_resources\icon.ico</param.icon>
+    <param.icons>
+      <file>${PROJECT_ROOT}\log_analyzer_resources\icon_48.png</file>
+      <file>${PROJECT_ROOT}\log_analyzer_resources\icon_32.png</file>
+      <file>${PROJECT_ROOT}\log_analyzer_resources\icon_24.png</file>
+      <file>${PROJECT_ROOT}\log_analyzer_resources\icon_16.png</file>
+    </param.icons>
+    <param.version>1.0</param.version>
+    <param.authnamewatermark />
+    <param.email />
+    <param.company />
+    <param.summary />
+    <param.description />
+    <param.screenshot>${PROJECT_ROOT}\logo1000.png</param.screenshot>
+    <param.guid />
+    <param.installpath.string>\log_analyzer\</param.installpath.string>
+    <param.installpath.combo>option.installpath.programfiles</param.installpath.combo>
+    <param.logo>${PROJECT_ROOT}\logo1000.png</param.logo>
+    <param.install.notes />
+    <param.target.install.notes />
+    <param.intermediate>${PROJECT_ROOT}\log_analyzer\for_testing</param.intermediate>
+    <param.files.only>${PROJECT_ROOT}\log_analyzer\for_redistribution_files_only</param.files.only>
+    <param.output>${PROJECT_ROOT}\log_analyzer\for_redistribution</param.output>
+    <param.logdir>${PROJECT_ROOT}\log_analyzer</param.logdir>
+    <param.enable.clean.build>false</param.enable.clean.build>
+    <param.user.defined.mcr.options />
+    <param.target.type>subtarget.standalone</param.target.type>
+    <param.support.packages />
+    <param.web.mcr>true</param.web.mcr>
+    <param.package.mcr>false</param.package.mcr>
+    <param.no.mcr>false</param.no.mcr>
+    <param.web.mcr.name>MyAppInstaller_web</param.web.mcr.name>
+    <param.package.mcr.name>MyAppInstaller_mcr</param.package.mcr.name>
+    <param.no.mcr.name>MyAppInstaller_app</param.no.mcr.name>
+    <param.windows.command.prompt>true</param.windows.command.prompt>
+    <param.create.log>false</param.create.log>
+    <param.log.file />
+    <param.native.matlab>false</param.native.matlab>
+    <param.checkbox>false</param.checkbox>
+    <param.example />
+    <param.help.text>Syntax 
+	 log_analyzer -? 
+	 log_analyzer signalFigure mapFigure scriptPath 
+ Input Arguments 
+	 -?  print help on how to use the application 
+	 signalFigure mapFigure scriptPath  input arguments</param.help.text>
+    <unset>
+      <param.version />
+      <param.authnamewatermark />
+      <param.email />
+      <param.company />
+      <param.summary />
+      <param.description />
+      <param.guid />
+      <param.installpath.string />
+      <param.installpath.combo />
+      <param.install.notes />
+      <param.target.install.notes />
+      <param.intermediate />
+      <param.files.only />
+      <param.output />
+      <param.logdir />
+      <param.enable.clean.build />
+      <param.user.defined.mcr.options />
+      <param.target.type />
+      <param.support.packages />
+      <param.web.mcr />
+      <param.package.mcr />
+      <param.no.mcr />
+      <param.web.mcr.name />
+      <param.package.mcr.name />
+      <param.no.mcr.name />
+      <param.windows.command.prompt />
+      <param.create.log />
+      <param.log.file />
+      <param.native.matlab />
+      <param.checkbox />
+      <param.example />
+    </unset>
+    <fileset.main>
+      <file>${PROJECT_ROOT}\plot2.m</file>
+    </fileset.main>
+    <fileset.resources>
+      <file>${PROJECT_ROOT}\functions\apply_plot2_signal_profile.m</file>
+      <file>${PROJECT_ROOT}\functions\attach_changed_params_to_summary.m</file>
+      <file>${PROJECT_ROOT}\functions\basename_from_path.m</file>
+      <file>${PROJECT_ROOT}\functions\build_changed_param_table.m</file>
+      <file>${PROJECT_ROOT}\functions\build_log_parameter_mode_segments.m</file>
+      <file>${PROJECT_ROOT}\functions\build_plot2_boat_actuators.m</file>
+      <file>${PROJECT_ROOT}\functions\build_plot2_local_ekf_track.m</file>
+      <file>${PROJECT_ROOT}\functions\calculate_mode_track_lengths.m</file>
+      <file>${PROJECT_ROOT}\functions\build_plot2_signal_catalog.m</file>
+      <file>${PROJECT_ROOT}\functions\build_segmented_summary_table.m</file>
+      <file>${PROJECT_ROOT}\functions\build_target_trajectory.m</file>
+      <file>${PROJECT_ROOT}\functions\choose_and_open_log.m</file>
+      <file>${PROJECT_ROOT}\functions\clean_msg.m</file>
+      <file>${PROJECT_ROOT}\functions\clean_time_outliers.m</file>
+      <file>${PROJECT_ROOT}\functions\compute_duration.m</file>
+      <file>${PROJECT_ROOT}\functions\compute_log_end_time.m</file>
+      <file>${PROJECT_ROOT}\functions\create_mini_report.m</file>
+      <file>${PROJECT_ROOT}\functions\convert_speed_for_unit.m</file>
+      <file>${PROJECT_ROOT}\functions\extract_gps_boot_time.m</file>
+      <file>${PROJECT_ROOT}\functions\extract_last_param_map.m</file>
+      <file>${PROJECT_ROOT}\functions\extract_log_start_time.m</file>
+      <file>${PROJECT_ROOT}\functions\extract_param_history.m</file>
+      <file>${PROJECT_ROOT}\functions\filter_meaningful_logs.m</file>
+      <file>${PROJECT_ROOT}\functions\filter_summary_segments.m</file>
+      <file>${PROJECT_ROOT}\functions\filter_unique_processed_logs.m</file>
+      <file>${PROJECT_ROOT}\functions\find_bin_files.m</file>
+      <file>${PROJECT_ROOT}\functions\find_time_outliers.m</file>
+      <file>${PROJECT_ROOT}\functions\flatten_param_names.m</file>
+      <file>${PROJECT_ROOT}\functions\flatten_param_values.m</file>
+      <file>${PROJECT_ROOT}\functions\format_track_length.m</file>
+      <file>${PROJECT_ROOT}\functions\format_numeric_markdown.m</file>
+      <file>${PROJECT_ROOT}\functions\get_field_value.m</file>
+      <file>${PROJECT_ROOT}\functions\get_plot2_log_time_bounds.m</file>
+      <file>${PROJECT_ROOT}\functions\has_field_value.m</file>
+      <file>${PROJECT_ROOT}\functions\highlightLine.m</file>
+      <file>${PROJECT_ROOT}\functions\is_control_relevant_param.m</file>
+      <file>${PROJECT_ROOT}\functions\is_meaningful_log.m</file>
+      <file>${PROJECT_ROOT}\functions\load_plot2_signal_profiles.m</file>
+      <file>${PROJECT_ROOT}\functions\log_start_epoch.m</file>
+      <file>${PROJECT_ROOT}\functions\mini_report_params.txt</file>
+      <file>${PROJECT_ROOT}\functions\mode_name_from_id.m</file>
+      <file>${PROJECT_ROOT}\functions\normalize_param_name.m</file>
+      <file>${PROJECT_ROOT}\functions\onRulerClean.m</file>
+      <file>${PROJECT_ROOT}\functions\open_plot2_signal_profile_editor.m</file>
+      <file>${PROJECT_ROOT}\functions\parse_datetime_as_string.m</file>
+      <file>${PROJECT_ROOT}\functions\parse_datetime_from_filename.m</file>
+      <file>${PROJECT_ROOT}\functions\read_plot2_actuator_signal.m</file>
+      <file>${PROJECT_ROOT}\functions\read_plot2_rudder_signal.m</file>
+      <file>${PROJECT_ROOT}\functions\render_plot2_signal_profile.m</file>
+      <file>${PROJECT_ROOT}\functions\restore_saved_figure_position.m</file>
+      <file>${PROJECT_ROOT}\functions\safe_markdown_cell.m</file>
+      <file>${PROJECT_ROOT}\functions\save_figure_position.m</file>
+      <file>${PROJECT_ROOT}\functions\save_mini_report_callback.m</file>
+      <file>${PROJECT_ROOT}\functions\save_mini_report_for_current_mode.m</file>
+      <file>${PROJECT_ROOT}\functions\save_plot2_signal_profiles.m</file>
+      <file>${PROJECT_ROOT}\functions\select_plot2_log_file.m</file>
+      <file>${PROJECT_ROOT}\functions\set_cursor_from_click.m</file>
+      <file>${PROJECT_ROOT}\functions\set_value_in_map.m</file>
+      <file>${PROJECT_ROOT}\functions\sort_bin_files_by_start_time.m</file>
+      <file>${PROJECT_ROOT}\functions\set_plot2_speed_unit.m</file>
+      <file>${PROJECT_ROOT}\functions\speed_unit_label.m</file>
+      <file>${PROJECT_ROOT}\functions\summarize_log.m</file>
+      <file>${PROJECT_ROOT}\functions\summarize_max_throttle_out_from_rec.m</file>
+      <file>${PROJECT_ROOT}\functions\summarize_modes.m</file>
+      <file>${PROJECT_ROOT}\functions\summarize_single_log.m</file>
+      <file>${PROJECT_ROOT}\functions\summarize_speed.m</file>
+      <file>${PROJECT_ROOT}\functions\summarize_turn_rate.m</file>
+      <file>${PROJECT_ROOT}\functions\sync_map_to_time_window.m</file>
+      <file>${PROJECT_ROOT}\functions\time_outlier_mask.m</file>
+      <file>${PROJECT_ROOT}\functions\toggle_cursor_tool.m</file>
+      <file>${PROJECT_ROOT}\functions\update_cursor_tool.m</file>
+      <file>${PROJECT_ROOT}\functions\update_target_position_on_map.m</file>
+      <file>${PROJECT_ROOT}\functions\updateMeterLabels.m</file>
+      <file>${PROJECT_ROOT}\functions\value_to_string.m</file>
+      <file>${PROJECT_ROOT}\functions\values_equal.m</file>
+      <file>${PROJECT_ROOT}\functions\write_summary_markdown.m</file>
+      <file>${PROJECT_ROOT}\functions\zoomToMode.m</file>
+    </fileset.resources>
+    <fileset.package />
+    <fileset.depfun>
+      <file>${PROJECT_ROOT}\Ardupilog.m</file>
+      <file>${PROJECT_ROOT}\LogMsgGroup.m</file>
+    </fileset.depfun>
+    <build-deliverables>
+      <file location="${PROJECT_ROOT}\log_analyzer\for_testing" name="splash.png" optional="false">D:\copter\ardupilog-master\ardupilog.git\log_analyzer\for_testing\splash.png</file>
+      <file location="${PROJECT_ROOT}\log_analyzer\for_testing" name="readme.txt" optional="true">D:\copter\ardupilog-master\ardupilog.git\log_analyzer\for_testing\readme.txt</file>
+      <file location="${PROJECT_ROOT}\log_analyzer\for_testing" name="log_analyzer.exe" optional="false">D:\copter\ardupilog-master\ardupilog.git\log_analyzer\for_testing\log_analyzer.exe</file>
+    </build-deliverables>
+    <workflow />
+    <matlab>
+      <root>C:\Program Files\MATLAB\R2024a</root>
+      <toolboxes>
+        <toolbox name="matlabcoder" />
+        <toolbox name="embeddedcoder" />
+        <toolbox name="fixedpoint" />
+      </toolboxes>
+      <toolbox>
+        <matlabcoder>
+          <enabled>true</enabled>
+        </matlabcoder>
+      </toolbox>
+      <toolbox>
+        <embeddedcoder>
+          <enabled>true</enabled>
+        </embeddedcoder>
+      </toolbox>
+      <toolbox>
+        <fixedpoint>
+          <enabled>true</enabled>
+        </fixedpoint>
+      </toolbox>
+    </matlab>
+    <platform>
+      <unix>false</unix>
+      <mac>false</mac>
+      <windows>true</windows>
+      <win2k>false</win2k>
+      <winxp>false</winxp>
+      <vista>false</vista>
+      <linux>false</linux>
+      <solaris>false</solaris>
+      <osver>10.0</osver>
+      <os32>false</os32>
+      <os64>true</os64>
+      <arch>win64</arch>
+      <matlab>true</matlab>
+    </platform>
+  </configuration>
+</deployment-project>

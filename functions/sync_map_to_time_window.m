@@ -86,14 +86,19 @@ function sync_map_to_time_window(signalAxes, uic)
         ekfLng = ekfLng(validEkf);
         ekfSpeed = ekfSpeed(validEkf);
         if numel(ekfLat) > 1
-            speedMin = min(ekfSpeed);
-            speedMax = max(ekfSpeed);
+            unitName = 'km/h';
+            if isfield(ud, 'speedUnit')
+                unitName = ud.speedUnit;
+            end
+            ekfSpeedForMap = convert_speed_for_unit(ekfSpeed, unitName);
+            speedMin = min(ekfSpeedForMap);
+            speedMax = max(ekfSpeedForMap);
             padding = max(0.1 * (speedMax - speedMin), max(abs(speedMin) * 0.1, 1));
             if speedMin == speedMax
                 padding = max(abs(speedMin) * 0.1, 1);
             end
             clim(gax, [speedMin - padding, speedMax + padding]);
-            ud.ekfTrack = geoscatter(gax, ekfLat, ekfLng, 10, ekfSpeed, 'filled');
+            ud.ekfTrack = geoscatter(gax, ekfLat, ekfLng, 10, ekfSpeedForMap, 'filled');
             ud.ekfStart = geoscatter(gax, ekfLat(1), ekfLng(1), 50, 'g', 'filled');
             ud.ekfEnd = geoscatter(gax, ekfLat(end), ekfLng(end), 50, 'w', 'filled');
             selectedLat = [selectedLat; ekfLat(:)];
@@ -104,6 +109,11 @@ function sync_map_to_time_window(signalAxes, uic)
 
     if isfield(ud, 'cb') && isvalid(ud.cb)
         ud.cb.Visible = 'on';
+        unitName = 'km/h';
+        if isfield(ud, 'speedUnit')
+            unitName = ud.speedUnit;
+        end
+        ud.cb.Label.String = speed_unit_label(unitName);
     end
 
     if ~isempty(selectedLat)
