@@ -67,7 +67,7 @@ function restoreLegendAndAxesPosition(lg)
             axesHandle.Position = lg.UserData.FixedAxesPosition;
         end
     end
-    if isfield(lg.UserData, 'FixedPosition')
-        lg.Position = lg.UserData.FixedPosition;
-    end
+    %if isfield(lg.UserData, 'FixedPosition')
+    %    lg.Position = lg.UserData.FixedPosition;
+    %end
 end

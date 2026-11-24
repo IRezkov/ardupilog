@@ -28,6 +28,13 @@ function rec = summarize_single_log(log, fullPath)
     rec.MaxThrottleOut = summarize_max_throttle_out_from_rec(rec, log);
     rec.ChangedParams = '';
 
+    wheelInfo = summarize_wheel_telemetry(log);
+    rec.WheelCount = wheelInfo.WheelCount;
+    rec.WheelDistanceM = wheelInfo.WheelDistanceM;
+    rec.WheelIds = wheelInfo.WheelIds;
+
+    [rec.JumpCount, rec.JumpSummary] = detect_log_jumps(log);
+
     modeInfo = summarize_modes(log);
     if ~isempty(modeInfo)
         rec.MainMode = modeInfo.mainMode;

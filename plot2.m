@@ -76,28 +76,6 @@ if ~isempty(bootTimeUTC)
     bootTimeText = char(bootTime);
 end
 
-% Список имён режимов — так, чтобы индекс 1 соответствовал MANUAL=0
-modesnames = [
-    "MANUAL";
-    "ACRO";
-    "moment";          % 2 — пропущен в исходном enum
-    "STEERING";
-    "HOLD";
-    "LOITER";
-    "FOLLOW";
-    "SIMPLE";
-    "DOCK";
-    "CIRCLE";
-    "AUTO";
-    "RTL";
-    "SMART_RTL";
-    "";    
-    ""; % 13,14 — пропущены
-    "GUIDED";
-    "INITIALISING";
-    "man angle"
-];
-
 [t0, logEndTime] = get_plot2_log_time_bounds(log);
 
 
@@ -168,9 +146,9 @@ if isprop(log, 'MODE') && ~isempty(log.MODE) && ...
     for i = 1:modeLineCount
         line([log.MODE.TimeS(i) log.MODE.TimeS(i)] - t0, [0 50], ...
             'Color', 'black', 'HandleVisibility', 'off');
-        modeIndex = double(log.MODE.Mode(i)) + 1;
-        if isfinite(modeIndex) && modeIndex >= 1 && modeIndex <= numel(modesnames)
-            modeText = modesnames(modeIndex);
+        modeValue = double(log.MODE.Mode(i));
+        if isfinite(modeValue)
+            modeText = string(mode_name_from_id(modeValue));
         else
             modeText = "UNKNOWN";
         end
@@ -208,9 +186,8 @@ if isprop(log, 'MODE') && ~isempty(log.MODE) && ...
         durations = [diff(modeTimes); max(0, tEnd - modeTimes(end))];
         modeLabels = strings(numel(modeNums), 1);
         for i = 1:numel(modeNums)
-            modeIndex = modeNums(i) + 1;
-            if isfinite(modeIndex) && modeIndex >= 1 && modeIndex <= numel(modesnames)
-                modeName = modesnames(modeIndex);
+            if isfinite(modeNums(i))
+                modeName = mode_name_from_id(modeNums(i));
             else
                 modeName = "UNKNOWN";
             end

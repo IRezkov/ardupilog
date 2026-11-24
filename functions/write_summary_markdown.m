@@ -16,8 +16,8 @@ function write_summary_markdown(summaryTable, paramTable, outDir, filename, allS
     fprintf(fid, 'Generated for %d log(s).\n\n', height(summaryTable));
 
     fprintf(fid, '## Overview\n\n');
-    fprintf(fid, '| Date | File | Start (s) | Duration (s) | Main mode | Mode summary | Avg speed (m/s) | Max speed (m/s) | Max turn rate | Params |\n');
-    fprintf(fid, '| --- | --- | ---: | ---: | --- | --- | ---: | ---: | ---: | --- |\n');
+    fprintf(fid, '| Date | File | Start (s) | Duration (s) | Main mode | Mode summary | Avg speed (m/s) | Max speed (m/s) | Max turn rate | Wheel count | Wheel distance (m) | Wheel IDs | Jump count | Jump analysis | Params |\n');
+    fprintf(fid, '| --- | --- | ---: | ---: | --- | --- | ---: | ---: | ---: | ---: | ---: | --- | ---: | --- | --- |\n');
 
     for i = 1:height(summaryTable)
         row = summaryTable(i, :);
@@ -30,12 +30,27 @@ function write_summary_markdown(summaryTable, paramTable, outDir, filename, allS
         avgVal = format_numeric_markdown(row.AvgSpeedMps);
         maxVal = format_numeric_markdown(row.MaxSpeedMps);
         turnVal = format_numeric_markdown(row.MaxTurnRateRaw);
+        wheelCountVal = format_numeric_markdown(row.WheelCount);
+        wheelDistanceVal = format_numeric_markdown(row.WheelDistanceM);
+        wheelIds = safe_markdown_cell(row.WheelIds);
+        jumpCountVal = format_numeric_markdown(row.JumpCount);
+        jumpSummary = safe_markdown_cell(row.JumpSummary);
         paramsText = safe_markdown_cell(row.ChangedParams);
 
-        fprintf(fid, '| %s | %s | %s | %s | %s | %s | %s | %s | %s | %s |\n', ...
-            dateValue, fileName, startVal, durationVal, modeName, modeSummary, avgVal, maxVal, turnVal, paramsText);
+        fprintf(fid, '| %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s |\n', ...
+            dateValue, fileName, startVal, durationVal, modeName, modeSummary, avgVal, maxVal, ...
+            turnVal, wheelCountVal, wheelDistanceVal, wheelIds, jumpCountVal, jumpSummary, paramsText);
     end
 
+    fprintf(fid, '\n## Jump detection method\n\n');
+    fprintf(fid, ['Jump detection is heuristic. The analyzer computes acceleration magnitude ' ...
+        'from the selected IMU group (the group with the most complete samples). A likely ' ...
+        'jump requires magnitude below 3 m/s^2 for at least 0.08 s, followed by magnitude ' ...
+        'of at least 15 m/s^2 within 0.8 s. The reported time is the start of the low-' ...
+        'acceleration interval, relative to boot time.\n\n']);
+    fprintf(fid, ['This can miss jumps without both phases and can flag hard bumps or ' ...
+        'other impacts. If usable IMU data is absent, the result is not assessed; ' ...
+        'no detections do not prove that no jump occurred.\n']);
 
     fprintf(fid, '\n## Changed parameters\n\n');
     if isempty(paramTable)
@@ -55,8 +70,8 @@ function write_summary_markdown(summaryTable, paramTable, outDir, filename, allS
 
     if ~isempty(allSummaryTable)
         fprintf(fid, '\n## All logs (before filtering)\n\n');
-        fprintf(fid, '| Date | File | Start (s) | Duration (s) | Main mode | Mode summary | Avg speed (m/s) | Max speed (m/s) | Max turn rate | Params |\n');
-        fprintf(fid, '| --- | --- | ---: | ---: | --- | --- | ---: | ---: | ---: | --- |\n');
+        fprintf(fid, '| Date | File | Start (s) | Duration (s) | Main mode | Mode summary | Avg speed (m/s) | Max speed (m/s) | Max turn rate | Wheel count | Wheel distance (m) | Wheel IDs | Jump count | Jump analysis | Params |\n');
+        fprintf(fid, '| --- | --- | ---: | ---: | --- | --- | ---: | ---: | ---: | ---: | ---: | --- | ---: | --- | --- |\n');
 
         for i = 1:height(allSummaryTable)
             row = allSummaryTable(i, :);
@@ -69,10 +84,16 @@ function write_summary_markdown(summaryTable, paramTable, outDir, filename, allS
             avgVal = format_numeric_markdown(row.AvgSpeedMps);
             maxVal = format_numeric_markdown(row.MaxSpeedMps);
             turnVal = format_numeric_markdown(row.MaxTurnRateRaw);
+            wheelCountVal = format_numeric_markdown(row.WheelCount);
+            wheelDistanceVal = format_numeric_markdown(row.WheelDistanceM);
+            wheelIds = safe_markdown_cell(row.WheelIds);
+            jumpCountVal = format_numeric_markdown(row.JumpCount);
+            jumpSummary = safe_markdown_cell(row.JumpSummary);
             paramsText = safe_markdown_cell(row.ChangedParams);
 
-            fprintf(fid, '| %s | %s | %s | %s | %s | %s | %s | %s | %s | %s |\n', ...
-                dateValue, fileName, startVal, durationVal, modeName, modeSummary, avgVal, maxVal, turnVal, paramsText);
+            fprintf(fid, '| %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s |\n', ...
+                dateValue, fileName, startVal, durationVal, modeName, modeSummary, avgVal, maxVal, ...
+                turnVal, wheelCountVal, wheelDistanceVal, wheelIds, jumpCountVal, jumpSummary, paramsText);
         end
     end
 
@@ -91,41 +112,3 @@ function dateValue = date_from_filename(fileName)
         str2double(tokens{2}), str2double(tokens{3}));
 end
 
-function s = safe_markdown_cell(value)
-    if isempty(value)
-        s = '-';
-        return;
-    end
-
-    if iscell(value)
-        s = strjoin(cellfun(@(x) safe_markdown_cell(x), value, 'UniformOutput', false), '; ');
-        return;
-    end
-
-    if isnumeric(value) || islogical(value)
-        s = format_numeric_markdown(value);
-        return;
-    end
-
-    s = char(string(value));
-    s = strrep(s, '\n', ' ');
-    s = strrep(s, '|', '\\|');
-end
-
-function s = format_numeric_markdown(value)
-    if isempty(value)
-        s = '-';
-        return;
-    end
-
-    if isnumeric(value) || islogical(value)
-        if numel(value) ~= 1 || isnan(value)
-            s = 'N/A';
-            return;
-        end
-        s = num2str(value);
-        return;
-    end
-
-    s = safe_markdown_cell(value);
-end

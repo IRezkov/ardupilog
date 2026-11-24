@@ -15,8 +15,10 @@ function s = safe_markdown_cell(value)
     end
 
     s = char(string(value));
-    s = strrep(s, '\n', ' ');
-    s = strrep(s, '|', '\\|');
+    s = strrep(s, sprintf('\r\n'), ' ');
+    s = strrep(s, sprintf('\n'), ' ');
+    s = strrep(s, sprintf('\r'), ' ');
+    s = strrep(s, '|', '\|');
 end
 
 function s = format_numeric_markdown(value)

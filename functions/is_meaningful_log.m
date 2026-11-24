@@ -19,6 +19,10 @@ function keep = is_meaningful_log(rec, minDurationSec, minSpeedMps, minThrottleO
     durationSec = rec.DurationSec;
     maxSpeed = rec.MaxSpeedMps;
     maxThrottleOut = summarize_max_throttle_out_from_rec(rec);
+    wheelDistanceM = NaN;
+    if isfield(rec, 'WheelDistanceM')
+        wheelDistanceM = rec.WheelDistanceM;
+    end
 
     if ~isnumeric(durationSec) || isnan(durationSec)
         durationSec = 0;
@@ -29,10 +33,14 @@ function keep = is_meaningful_log(rec, minDurationSec, minSpeedMps, minThrottleO
     if ~isnumeric(maxThrottleOut) || isnan(maxThrottleOut)
         maxThrottleOut = 0;
     end
+    hasWheelMovement = isnumeric(wheelDistanceM) && isscalar(wheelDistanceM) && ...
+        isfinite(wheelDistanceM) && wheelDistanceM >= 1;
 
     if durationSec < minDurationSec
-        keep = (maxSpeed >= (minSpeedMps + 0.2)) || (maxThrottleOut >= (minThrottleOut + 0.05));
+        keep = hasWheelMovement || ...
+            (maxSpeed >= (minSpeedMps + 0.2)) || ...
+            (maxThrottleOut >= (minThrottleOut + 0.05));
     else
-        keep = (maxSpeed >= minSpeedMps);
+        keep = hasWheelMovement || (maxSpeed >= minSpeedMps);
     end
 end

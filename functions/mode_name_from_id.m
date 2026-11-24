@@ -2,7 +2,7 @@ function name = mode_name_from_id(modeId)
     modeMap = {
         'MANUAL';
         'ACRO';
-        '2';          % 2 — пропущен в исходном enum
+        'момент';
         'STEERING';
         'HOLD';
         'LOITER';
@@ -13,14 +13,17 @@ function name = mode_name_from_id(modeId)
         'AUTO';
         'RTL';
         'SMART_RTL';
-        '13';    
-        '14'; % 13,14 — пропущены
+        '';
+        '';
         'GUIDED';
-        'INITIALISING'
+        'INITIALISING';
+        'баланс'
     };
 
-    idx = modeId + 1;
-    if idx >= 1 && idx <= numel(modeMap)
+    if isscalar(modeId) && isfinite(modeId) && modeId == fix(modeId) && ...
+            modeId >= 0 && modeId < numel(modeMap) && ...
+            ~isempty(modeMap{modeId + 1})
+        idx = modeId + 1;
         name = modeMap{idx};
     else
         name = sprintf('MODE_%d', modeId);
