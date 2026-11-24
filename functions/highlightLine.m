@@ -1,5 +1,10 @@
 function highlightLine(lg, ev)
     clickedLine = ev.Peer;
+    figureHandle = ancestor(lg, 'figure');
+    if strcmp(figureHandle.SelectionType, 'alt')
+        lg.UserData.ScaleTarget = clickedLine;
+        return;
+    end
     highlighted = lg.UserData.Highlighted;
     
     % Цвета для 4 линий: красный, зелёный, синий, оранжевый

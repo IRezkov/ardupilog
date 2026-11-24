@@ -85,6 +85,7 @@
     </fileset.main>
     <fileset.resources>
       <file>${PROJECT_ROOT}\functions\apply_plot2_signal_profile.m</file>
+      <file>${PROJECT_ROOT}\functions\update_plot2_event_labels.m</file>
       <file>${PROJECT_ROOT}\functions\attach_changed_params_to_summary.m</file>
       <file>${PROJECT_ROOT}\functions\basename_from_path.m</file>
       <file>${PROJECT_ROOT}\functions\build_changed_param_table.m</file>
@@ -93,6 +94,7 @@
       <file>${PROJECT_ROOT}\functions\build_plot2_local_ekf_track.m</file>
       <file>${PROJECT_ROOT}\functions\calculate_mode_track_lengths.m</file>
       <file>${PROJECT_ROOT}\functions\build_plot2_signal_catalog.m</file>
+      <file>${PROJECT_ROOT}\functions\bring_plot2_line_to_front.m</file>
       <file>${PROJECT_ROOT}\functions\build_segmented_summary_table.m</file>
       <file>${PROJECT_ROOT}\functions\build_target_trajectory.m</file>
       <file>${PROJECT_ROOT}\functions\choose_and_open_log.m</file>
@@ -144,6 +146,7 @@
       <file>${PROJECT_ROOT}\functions\set_value_in_map.m</file>
       <file>${PROJECT_ROOT}\functions\sort_bin_files_by_start_time.m</file>
       <file>${PROJECT_ROOT}\functions\set_plot2_speed_unit.m</file>
+      <file>${PROJECT_ROOT}\functions\set_plot2_line_scale.m</file>
       <file>${PROJECT_ROOT}\functions\speed_unit_label.m</file>
       <file>${PROJECT_ROOT}\functions\summarize_log.m</file>
       <file>${PROJECT_ROOT}\functions\summarize_max_throttle_out_from_rec.m</file>

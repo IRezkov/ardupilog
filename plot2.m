@@ -156,9 +156,15 @@ lgd.UserData.FixedPosition = get(lgd, 'Position');
 lgd.Position = lgd.UserData.FixedPosition;
 
 % Линии режимов и сообщения не зависят от выбранного профиля.
+modeAnnotationTimes = zeros(0, 1);
+modeAnnotationLabels = gobjects(0, 1);
+messageTimes = zeros(0, 1);
+messageLabels = gobjects(0, 1);
 if isprop(log, 'MODE') && ~isempty(log.MODE) && ...
         isprop(log.MODE, 'TimeS') && isprop(log.MODE, 'Mode')
     modeLineCount = min(numel(log.MODE.TimeS), numel(log.MODE.Mode));
+    modeAnnotationTimes = double(log.MODE.TimeS(1:modeLineCount)) - t0;
+    modeAnnotationLabels = gobjects(modeLineCount, 1);
     for i = 1:modeLineCount
         line([log.MODE.TimeS(i) log.MODE.TimeS(i)] - t0, [0 50], ...
             'Color', 'black', 'HandleVisibility', 'off');
@@ -168,16 +174,18 @@ if isprop(log, 'MODE') && ~isempty(log.MODE) && ...
         else
             modeText = "UNKNOWN";
         end
-        text(log.MODE.TimeS(i) - t0, 20 + i * 2, modeText);
+        modeAnnotationLabels(i) = text(modeAnnotationTimes(i), 0, modeText);
     end
 end
 if ~isempty(msg) && isprop(log.MSG, 'TimeS')
     messageCount = min(numel(log.MSG.TimeS), size(msg, 1));
+    messageTimes = double(log.MSG.TimeS(1:messageCount)) - t0;
+    messageLabels = gobjects(messageCount, 1);
     for i = 1:messageCount
-        y = mod(i * 5, 250) + 50;
-        line([log.MSG.TimeS(i) log.MSG.TimeS(i)] - t0, [0 y], ...
+        xline(signalAxes, messageTimes(i), ...
             'Color', 'black', 'HandleVisibility', 'off');
-        text(log.MSG.TimeS(i) - t0, y, msg(i,:));
+        messageLabels(i) = text(messageTimes(i), 0, deblank(msg(i,:)), ...
+            'VerticalAlignment', 'top', 'Clipping', 'on');
     end
 end
 
@@ -618,6 +626,29 @@ signalFigure.UserData.cursorTool = struct( ...
     'lastLegendUpdate', -Inf);
 uic.UserData.xLimListener = addlistener(signalAxes, 'XLim', 'PostSet', ...
     @(~, ~) sync_map_to_time_window(signalAxes, uic));
+eventLabelListeners = {};
+if ~isempty(messageLabels)
+    eventLabelListeners{end + 1} = addlistener(signalAxes, 'XLim', 'PostSet', ...
+        @(~, ~) update_plot2_event_labels( ...
+            signalAxes, messageTimes, messageLabels, 'top'));
+    eventLabelListeners{end + 1} = addlistener(signalAxes, 'YLim', 'PostSet', ...
+        @(~, ~) update_plot2_event_labels( ...
+            signalAxes, messageTimes, messageLabels, 'top'));
+    update_plot2_event_labels(signalAxes, messageTimes, messageLabels, 'top');
+end
+if ~isempty(modeAnnotationLabels)
+    eventLabelListeners{end + 1} = addlistener(signalAxes, 'XLim', 'PostSet', ...
+        @(~, ~) update_plot2_event_labels( ...
+            signalAxes, modeAnnotationTimes, modeAnnotationLabels, 'bottom'));
+    eventLabelListeners{end + 1} = addlistener(signalAxes, 'YLim', 'PostSet', ...
+        @(~, ~) update_plot2_event_labels( ...
+            signalAxes, modeAnnotationTimes, modeAnnotationLabels, 'bottom'));
+    update_plot2_event_labels( ...
+        signalAxes, modeAnnotationTimes, modeAnnotationLabels, 'bottom');
+end
+if ~isempty(eventLabelListeners)
+    signalFigure.UserData.plot2EventLabelListeners = eventLabelListeners;
+end
 signalFigure.WindowButtonDownFcn = @(src, ~) set_cursor_from_click(src);
 cursorToggle = uicontrol(signalFigure, 'Style', 'togglebutton', ...
     'String', 'Cursor: OFF', ...

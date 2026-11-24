@@ -32,8 +32,14 @@ hold(signalAxes, 'on');
 
 lineNames = cell(1, numel(lineHandles));
 for lineIndex = 1:numel(lineHandles)
-    lineHandles(lineIndex).UserData.OrigLineWidth = lineHandles(lineIndex).LineWidth;
-    lineHandles(lineIndex).UserData.OrigColor = lineHandles(lineIndex).Color;
+    lineUserData = lineHandles(lineIndex).UserData;
+    lineUserData.OrigLineWidth = lineHandles(lineIndex).LineWidth;
+    lineUserData.OrigColor = lineHandles(lineIndex).Color;
+    lineUserData.OriginalYData = lineHandles(lineIndex).YData;
+    lineUserData.ScaleMode = 'none';
+    lineUserData.ScaleFactor = 1;
+    lineUserData.ScaleMaxAbs = NaN;
+    lineHandles(lineIndex).UserData = lineUserData;
     lineNames{lineIndex} = lineHandles(lineIndex).DisplayName;
 end
 
@@ -59,8 +65,24 @@ legendHandle.Position = fixedLegendPosition;
 legendHandle.AutoUpdate = 'off';
 legendHandle.UserData.Lines = lineHandles;
 legendHandle.UserData.BaseNames = lineNames;
+legendHandle.UserData.DisplayNames = lineNames;
 legendHandle.UserData.Highlighted = gobjects(0);
+if isfield(legendHandle.UserData, 'ScaleTarget')
+    legendHandle.UserData = rmfield(legendHandle.UserData, 'ScaleTarget');
+end
 legendHandle.ItemHitFcn = @highlightLine;
+scaleMenu = uicontextmenu(ancestor(legendHandle, 'figure'));
+scaleMenu.ContextMenuOpeningFcn = ...
+    @(~, ~) set_plot2_legend_target(legendHandle);
+uimenu(scaleMenu, 'Label', 'Задать коэффициент...', ...
+    'Callback', @(~, ~) set_plot2_line_scale(legendHandle, 'factor'));
+uimenu(scaleMenu, 'Label', 'Сбросить масштаб', ...
+    'Callback', @(~, ~) set_plot2_line_scale(legendHandle, 'reset'));
+uimenu(scaleMenu, 'Label', 'Авто: % по модулю', ...
+    'Callback', @(~, ~) set_plot2_line_scale(legendHandle, 'auto'));
+uimenu(scaleMenu, 'Label', 'Выделить на передний план', ...
+    'Callback', @(~, ~) bring_plot2_line_to_front(legendHandle));
+legendHandle.ContextMenu = scaleMenu;
 legendHandle.UserData.FixedPosition = fixedLegendPosition;
 if ~isempty(fixedAxesPosition)
     signalAxes.Position = fixedAxesPosition;
@@ -75,6 +97,43 @@ if isfield(signalFigure.UserData, 'cursorTool')
     cursorData.lastLegendUpdate = -Inf;
     signalFigure.UserData.cursorTool = cursorData;
 end
+end
+
+function set_plot2_legend_target(legendHandle)
+legendData = legendHandle.UserData;
+lineHandles = legendData.Lines;
+lineCount = numel(lineHandles);
+if lineCount == 0
+    return;
+end
+
+figureHandle = ancestor(legendHandle, 'figure');
+legendPosition = getpixelposition(legendHandle, true);
+pointerPosition = figureHandle.CurrentPoint;
+if pointerPosition(1) < legendPosition(1) || ...
+        pointerPosition(1) > legendPosition(1) + legendPosition(3) || ...
+        pointerPosition(2) < legendPosition(2) || ...
+        pointerPosition(2) > legendPosition(2) + legendPosition(4)
+    return;
+end
+
+switch legendHandle.Orientation
+    case 'vertical'
+        positionInList = 1 - ...
+            (pointerPosition(2) - legendPosition(2)) / legendPosition(4);
+    case 'horizontal'
+        positionInList = ...
+            (pointerPosition(1) - legendPosition(1)) / legendPosition(3);
+    otherwise
+        return;
+end
+lineIndex = min(lineCount, max(1, floor(positionInList * lineCount) + 1));
+if strcmp(legendHandle.Direction, 'reverse')
+    lineIndex = lineCount - lineIndex + 1;
+end
+
+legendData.ScaleTarget = lineHandles(lineIndex);
+legendHandle.UserData = legendData;
 end
 
 function reservedNames = reserveLegendValueWidth(lineHandles, lineNames)

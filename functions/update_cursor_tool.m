@@ -33,6 +33,9 @@ function update_cursor_tool(signalFigure, requestedTime)
 
     lines = data.legend.UserData.Lines;
     baseNames = data.legend.UserData.BaseNames;
+    if isfield(data.legend.UserData, 'DisplayNames')
+        baseNames = data.legend.UserData.DisplayNames;
+    end
     currentClock = now * 86400;
     if currentClock - data.lastLegendUpdate >= 0.15
         legendStrings = baseNames;
