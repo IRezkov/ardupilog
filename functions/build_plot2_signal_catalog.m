@@ -7,14 +7,19 @@ if nargin < 2
     targetTrajectory = [];
 end
 
-catalog = struct('id', {}, 'group', {}, 'field', {}, 'kind', {}, 'label', {});
-if isempty(logObj) || ~isobject(logObj)
+catalog = struct('id', {}, 'group', {}, 'messageGroup', {}, ...
+    'field', {}, 'kind', {}, 'label', {}, 'wheelId', {});
+if isempty(logObj) || ~(isobject(logObj) || isstruct(logObj))
     return;
 end
 
 excludedFields = {'TimeS', 'TimeUS', 'DatenumUTC', 'LineNo', ...
     'MsgInstance', 'typeNumID', 'fieldUnits', 'fieldMultipliers', 'name'};
-groupNames = properties(logObj);
+if isstruct(logObj)
+    groupNames = fieldnames(logObj);
+else
+    groupNames = properties(logObj);
+end
 
 for groupIndex = 1:numel(groupNames)
     groupName = groupNames{groupIndex};
@@ -44,9 +49,25 @@ for groupIndex = 1:numel(groupNames)
         continue;
     end
 
+    isWheelTelemetry = ~isempty(regexp(groupName, '^(WTLM|WIMU)\d*$', 'once'));
+    wheelIdValues = [];
+    if isWheelTelemetry
+        wheelIdValues = read_message_field(message, 'id');
+        if isempty(wheelIdValues)
+            wheelIdValues = read_message_field(message, 'ID');
+        end
+        if ~(isnumeric(wheelIdValues) || islogical(wheelIdValues)) || ...
+                numel(wheelIdValues) ~= numel(timeValues)
+            wheelIdValues = [];
+        else
+            wheelIdValues = double(wheelIdValues(:));
+        end
+    end
+
     for fieldIndex = 1:numel(fieldNames)
         fieldName = fieldNames{fieldIndex};
-        if ismember(fieldName, excludedFields)
+        if ismember(fieldName, excludedFields) || ...
+                (isWheelTelemetry && strcmpi(fieldName, 'id'))
             continue;
         end
 
@@ -59,6 +80,65 @@ for groupIndex = 1:numel(groupNames)
         catalog(end + 1) = make_entry( ...
             [groupName '.' fieldName], groupName, fieldName, 'raw', ...
             [groupName '.' fieldName]); %#ok<AGROW>
+
+        if isWheelTelemetry && ~isempty(wheelIdValues)
+            wheelIds = unique(wheelIdValues(isfinite(wheelIdValues)));
+            for wheelIndex = 1:numel(wheelIds)
+                wheelId = wheelIds(wheelIndex);
+                wheelSignalId = sprintf('Wheel%g.%s.%s', ...
+                    wheelId, groupName, fieldName);
+                wheelGroup = sprintf('Wheel %g / %s', wheelId, groupName);
+                wheelLabel = sprintf('Wheel %g %s.%s', ...
+                    wheelId, groupName, fieldName);
+                catalog(end + 1) = make_entry( ...
+                    wheelSignalId, wheelGroup, fieldName, 'wheel_raw', ...
+                    wheelLabel, wheelId, groupName); %#ok<AGROW>
+            end
+        end
+    end
+
+    isControllerImu = ~isempty(regexp(groupName, '^IMU\d*$', 'once'));
+    isWheelImu = ~isempty(regexp(groupName, '^WIMU\d*$', 'once'));
+    if isControllerImu || isWheelImu
+        if isControllerImu
+            accelerationFields = {'AccX', 'AccY', 'AccZ'};
+        else
+            accelerationFields = {'ax', 'ay', 'az'};
+        end
+        accelerationValues = cell(1, numel(accelerationFields));
+        hasAccelerationData = true;
+        for axisIndex = 1:numel(accelerationFields)
+            accelerationValues{axisIndex} = read_message_field( ...
+                message, accelerationFields{axisIndex});
+            axisValues = accelerationValues{axisIndex};
+            if ~(isnumeric(axisValues) || islogical(axisValues)) || ...
+                    ~isvector(axisValues) || numel(axisValues) ~= numel(timeValues)
+                hasAccelerationData = false;
+                break;
+            end
+        end
+
+        if hasAccelerationData && isControllerImu
+            catalog(end + 1) = make_entry( ...
+                ['Derived.' groupName '.AccelMagnitude'], groupName, ...
+                'AccelMagnitude', 'imu_accel_magnitude', ...
+                [groupName ' |a| (m/s^2)']); %#ok<AGROW>
+            catalog(end + 1) = make_entry( ...
+                ['Derived.' groupName '.LowAcceleration'], groupName, ...
+                'LowAcceleration', 'imu_low_acceleration', ...
+                [groupName ' low acceleration (<3 m/s^2)']); %#ok<AGROW>
+        elseif hasAccelerationData && isWheelImu && ~isempty(wheelIdValues)
+            wheelIds = unique(wheelIdValues(isfinite(wheelIdValues)));
+            for wheelIndex = 1:numel(wheelIds)
+                wheelId = wheelIds(wheelIndex);
+                catalog(end + 1) = make_entry( ...
+                    sprintf('Wheel%g.WIMU.AccelMagnitude', wheelId), ...
+                    sprintf('Wheel %g / WIMU', wheelId), ...
+                    'AccelMagnitude', 'imu_accel_magnitude', ...
+                    sprintf('Wheel %g WIMU |a| (raw)', wheelId), ...
+                    wheelId, groupName); %#ok<AGROW>
+            end
+        end
     end
 end
 
@@ -129,9 +209,15 @@ else
 end
 end
 
-function entry = make_entry(id, group, field, kind, label)
-entry = struct('id', id, 'group', group, 'field', field, ...
-    'kind', kind, 'label', label);
+function entry = make_entry(id, group, field, kind, label, wheelId, messageGroup)
+if nargin < 6
+    wheelId = NaN;
+end
+if nargin < 7
+    messageGroup = group;
+end
+entry = struct('id', id, 'group', group, 'messageGroup', messageGroup, ...
+    'field', field, 'kind', kind, 'label', label, 'wheelId', wheelId);
 end
 
 function found = has_signal(catalog, signalId)

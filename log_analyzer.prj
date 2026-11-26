@@ -100,11 +100,13 @@
       <file>${PROJECT_ROOT}\functions\choose_and_open_log.m</file>
       <file>${PROJECT_ROOT}\functions\clean_msg.m</file>
       <file>${PROJECT_ROOT}\functions\clean_time_outliers.m</file>
+      <file>${PROJECT_ROOT}\functions\close_plot2_signal_figure.m</file>
       <file>${PROJECT_ROOT}\functions\compute_duration.m</file>
       <file>${PROJECT_ROOT}\functions\compute_log_end_time.m</file>
       <file>${PROJECT_ROOT}\functions\create_mini_report.m</file>
       <file>${PROJECT_ROOT}\functions\convert_speed_for_unit.m</file>
       <file>${PROJECT_ROOT}\functions\detect_log_jumps.m</file>
+      <file>${PROJECT_ROOT}\functions\delete_plot2_profile_line.m</file>
       <file>${PROJECT_ROOT}\functions\extract_gps_boot_time.m</file>
       <file>${PROJECT_ROOT}\functions\extract_last_param_map.m</file>
       <file>${PROJECT_ROOT}\functions\extract_log_start_time.m</file>
@@ -137,11 +139,13 @@
       <file>${PROJECT_ROOT}\functions\read_plot2_rudder_signal.m</file>
       <file>${PROJECT_ROOT}\functions\render_plot2_signal_profile.m</file>
       <file>${PROJECT_ROOT}\functions\restore_saved_figure_position.m</file>
+      <file>${PROJECT_ROOT}\functions\restore_plot2_signal_profile_state.m</file>
       <file>${PROJECT_ROOT}\functions\safe_markdown_cell.m</file>
       <file>${PROJECT_ROOT}\functions\save_figure_position.m</file>
       <file>${PROJECT_ROOT}\functions\save_mini_report_callback.m</file>
       <file>${PROJECT_ROOT}\functions\save_mini_report_for_current_mode.m</file>
       <file>${PROJECT_ROOT}\functions\save_plot2_signal_profiles.m</file>
+      <file>${PROJECT_ROOT}\functions\save_plot2_signal_profile_state.m</file>
       <file>${PROJECT_ROOT}\functions\select_plot2_log_file.m</file>
       <file>${PROJECT_ROOT}\functions\set_cursor_from_click.m</file>
       <file>${PROJECT_ROOT}\functions\set_value_in_map.m</file>

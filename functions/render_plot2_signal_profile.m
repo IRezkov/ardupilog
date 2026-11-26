@@ -42,6 +42,12 @@ for signalIndex = 1:numel(signalIds)
     end
     lineHandles(end + 1) = plot(axesHandle, xValues, ...
         double(signalValues(:)), lineArgs{:}); %#ok<AGROW>
+    lineUserData = lineHandles(end).UserData;
+    if ~isstruct(lineUserData)
+        lineUserData = struct();
+    end
+    lineUserData.SignalId = signalId;
+    lineHandles(end).UserData = lineUserData;
 end
 end
 
@@ -69,7 +75,7 @@ if startsWith(entry.kind, 'target_error')
     return;
 end
 
-message = get_log_message(logObj, entry.group);
+message = get_log_message(logObj, entry.messageGroup);
 if isempty(message)
     return;
 end
@@ -81,6 +87,34 @@ end
 switch entry.kind
     case 'raw'
         signalValues = get_message_field(message, entry.field);
+    case 'wheel_raw'
+        sourceValues = get_message_field(message, entry.field);
+        wheelIds = get_message_field(message, 'id');
+        if isempty(wheelIds)
+            wheelIds = get_message_field(message, 'ID');
+        end
+        if isempty(sourceValues) || isempty(wheelIds) || ...
+                numel(sourceValues) ~= numel(timeValues) || ...
+                numel(wheelIds) ~= numel(timeValues)
+            return;
+        end
+        wheelMask = double(wheelIds(:)) == entry.wheelId;
+        timeValues = timeValues(:);
+        signalValues = double(sourceValues(:));
+        timeValues = timeValues(wheelMask);
+        signalValues = signalValues(wheelMask);
+    case {'imu_accel_magnitude', 'imu_low_acceleration'}
+        [timeValues, accelerationMagnitude, hasAccelerationData] = ...
+            get_imu_acceleration_magnitude(message, entry, timeValues);
+        if ~hasAccelerationData
+            return;
+        end
+        if strcmp(entry.kind, 'imu_low_acceleration')
+            signalValues = double(accelerationMagnitude < 3);
+            signalValues(~isfinite(accelerationMagnitude)) = NaN;
+        else
+            signalValues = accelerationMagnitude;
+        end
     case {'speed_kmh', 'des_speed_kmh', 'thr_out_filtered'}
         sourceField = entry.field;
         sourceValues = get_message_field(message, sourceField);
@@ -129,6 +163,45 @@ switch entry.kind
 end
 
 isAvailable = ~isempty(signalValues) && numel(signalValues) == numel(timeValues);
+end
+
+function [timeValues, accelerationMagnitude, isAvailable] = ...
+    get_imu_acceleration_magnitude(message, entry, timeValues)
+timeValues = timeValues(:);
+accelerationMagnitude = [];
+isAvailable = false;
+if startsWith(entry.messageGroup, 'WIMU')
+    axisNames = {'ax', 'ay', 'az'};
+    wheelIds = get_message_field(message, 'id');
+    if isempty(wheelIds)
+        wheelIds = get_message_field(message, 'ID');
+    end
+    if isempty(wheelIds) || numel(wheelIds) ~= numel(timeValues)
+        return;
+    end
+    wheelMask = double(wheelIds(:)) == entry.wheelId;
+else
+    axisNames = {'AccX', 'AccY', 'AccZ'};
+    wheelMask = true(size(timeValues));
+end
+
+axisValues = cell(1, numel(axisNames));
+for axisIndex = 1:numel(axisNames)
+    axisValues{axisIndex} = get_message_field(message, axisNames{axisIndex});
+    if isempty(axisValues{axisIndex}) || ...
+            numel(axisValues{axisIndex}) ~= numel(timeValues)
+        return;
+    end
+    axisValues{axisIndex} = double(axisValues{axisIndex}(:));
+end
+
+timeValues = timeValues(wheelMask);
+for axisIndex = 1:numel(axisValues)
+    axisValues{axisIndex} = axisValues{axisIndex}(wheelMask);
+end
+accelerationMagnitude = sqrt( ...
+    axisValues{1}.^2 + axisValues{2}.^2 + axisValues{3}.^2);
+isAvailable = ~isempty(accelerationMagnitude);
 end
 
 function message = get_log_message(logObj, groupName)

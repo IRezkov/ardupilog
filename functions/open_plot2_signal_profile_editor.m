@@ -7,6 +7,10 @@ if ~isempty(activeEditor) && isvalid(activeEditor)
     delete(activeEditor);
 end
 
+currentPlotState = [];
+if ~isempty(signalFigure) && isgraphics(signalFigure)
+    currentPlotState = save_plot2_signal_profile_state(signalFigure, false);
+end
 profiles = load_plot2_signal_profiles();
 profileNames = {profiles.name};
 activeProfileName = 'Main';
@@ -45,8 +49,15 @@ if ~isempty(currentProfileName)
 end
 selectedProfileName = profiles(selectedProfileIndex).name;
 selectedSignalIds = normalize_signal_ids(profiles(selectedProfileIndex).signalIds);
+selectedLineScaleSettings = profiles(selectedProfileIndex).lineScaleSettings;
+selectedHighlightedSignalIds = profiles(selectedProfileIndex).highlightedSignalIds;
 if hasCurrentPlotSignals
     selectedSignalIds = normalize_signal_ids(currentPlotSignals);
+end
+if ~isempty(currentPlotState) && ...
+        strcmp(currentPlotState.name, currentProfileName)
+    selectedLineScaleSettings = currentPlotState.lineScaleSettings;
+    selectedHighlightedSignalIds = currentPlotState.highlightedSignalIds;
 end
 visibleSignalIds = {};
 isBuildingTree = false;
@@ -68,10 +79,13 @@ deleteButton = uibutton(activeEditor, 'Text', 'Delete', ...
 nameField = uieditfield(activeEditor, 'text', ...
     'Value', selectedProfileName, ...
     'Tag', 'Plot2ProfileName', ...
-    'Position', [12 622 462 26]);
+    'Position', [12 622 328 26]);
 if ~strcmp(selectedProfileName, profileDrop.Value)
     deleteButton.Enable = 'off';
 end
+uibutton(activeEditor, 'Text', 'Load from plot', ...
+    'Tag', 'Plot2LoadSignalProfileFromPlot', ...
+    'Position', [348 622 126 26], 'ButtonPushedFcn', @loadCurrentPlot);
 uibutton(activeEditor, 'Text', 'Save', 'Tag', 'Plot2SaveSignalProfile', ...
     'Position', [484 622 74 26], 'ButtonPushedFcn', @saveProfile);
 searchField = uieditfield(activeEditor, 'text', ...
@@ -88,6 +102,9 @@ statusLabel = uilabel(activeEditor, ...
 uibutton(activeEditor, 'Text', 'Apply to plot', ...
     'Tag', 'Plot2ApplySignalProfile', ...
     'Position', [402 12 156 34], 'ButtonPushedFcn', @applyProfile);
+uibutton(activeEditor, 'Text', 'Clear all', ...
+    'Tag', 'Plot2ClearAllSignals', ...
+    'Position', [12 12 120 34], 'ButtonPushedFcn', @clearAllSignals);
 
 rebuild_tree(selectedSignalIds);
 
@@ -98,6 +115,9 @@ rebuild_tree(selectedSignalIds);
             return;
         end
         selectedSignalIds = normalize_signal_ids(profiles(profileIndex).signalIds);
+        selectedLineScaleSettings = profiles(profileIndex).lineScaleSettings;
+        selectedHighlightedSignalIds = ...
+            profiles(profileIndex).highlightedSignalIds;
         nameField.Value = profiles(profileIndex).name;
         rebuild_tree(selectedSignalIds);
         statusLabel.Text = sprintf('%d signals selected', numel(selectedSignalIds));
@@ -107,9 +127,43 @@ rebuild_tree(selectedSignalIds);
         sync_selection_from_tree();
         deleteButton.Enable = 'off';
         selectedSignalIds = {};
+        selectedLineScaleSettings = ...
+            struct('signalId', {}, 'scaleMode', {}, 'scaleFactor', {});
+        selectedHighlightedSignalIds = {};
         nameField.Value = 'New profile';
         rebuild_tree(selectedSignalIds);
         statusLabel.Text = 'Unsaved profile';
+    end
+
+    function loadCurrentPlot(~, ~)
+        if isempty(signalFigure) || ~isgraphics(signalFigure)
+            uialert(activeEditor, 'The plot window is no longer available.', ...
+                'Load from plot');
+            return;
+        end
+
+        plotProfile = save_plot2_signal_profile_state(signalFigure, false);
+        if isempty(plotProfile)
+            uialert(activeEditor, 'The current plot configuration is unavailable.', ...
+                'Load from plot');
+            return;
+        end
+
+        profiles = load_plot2_signal_profiles();
+        selectedSignalIds = normalize_signal_ids(plotProfile.signalIds);
+        selectedLineScaleSettings = plotProfile.lineScaleSettings;
+        selectedHighlightedSignalIds = plotProfile.highlightedSignalIds;
+        nameField.Value = plotProfile.name;
+        if any(strcmp({profiles.name}, plotProfile.name))
+            profileDrop.Value = plotProfile.name;
+            deleteButton.Enable = 'on';
+        else
+            deleteButton.Enable = 'off';
+        end
+        rebuild_tree(selectedSignalIds);
+        statusLabel.Text = sprintf( ...
+            'Loaded %d signals, scales and highlights from plot', ...
+            numel(selectedSignalIds));
     end
 
     function saveProfile(~, ~)
@@ -120,11 +174,27 @@ rebuild_tree(selectedSignalIds);
             return;
         end
 
+        if ~isempty(signalFigure) && isgraphics(signalFigure)
+            save_plot2_signal_profile_state(signalFigure);
+        end
+        profiles = load_plot2_signal_profiles();
         profileIndex = find(strcmp({profiles.name}, profileName), 1);
-        profile = struct('name', profileName, 'signalIds', {selectedSignalIds});
+        lineScaleSettings = selectedLineScaleSettings( ...
+            ismember({selectedLineScaleSettings.signalId}, selectedSignalIds));
+        highlightedSignalIds = selectedHighlightedSignalIds( ...
+            ismember(selectedHighlightedSignalIds, selectedSignalIds));
         if isempty(profileIndex)
+            profile = struct('name', profileName, ...
+                'signalIds', {selectedSignalIds}, ...
+                'lineScaleSettings', {lineScaleSettings}, ...
+                'highlightedSignalIds', {highlightedSignalIds});
             profiles(end + 1) = profile;
         else
+            profile = profiles(profileIndex);
+            profile.name = profileName;
+            profile.signalIds = selectedSignalIds;
+            profile.lineScaleSettings = lineScaleSettings;
+            profile.highlightedSignalIds = highlightedSignalIds;
             profiles(profileIndex) = profile;
         end
         save_plot2_signal_profiles(profiles);
@@ -151,6 +221,9 @@ rebuild_tree(selectedSignalIds);
         profileDrop.Value = profiles(profileIndex).name;
         deleteButton.Enable = 'on';
         selectedSignalIds = normalize_signal_ids(profiles(profileIndex).signalIds);
+        selectedLineScaleSettings = profiles(profileIndex).lineScaleSettings;
+        selectedHighlightedSignalIds = ...
+            profiles(profileIndex).highlightedSignalIds;
         nameField.Value = profiles(profileIndex).name;
         rebuild_tree(selectedSignalIds);
         statusLabel.Text = 'Profile deleted';
@@ -180,17 +253,34 @@ rebuild_tree(selectedSignalIds);
             return;
         end
 
-        [~, unavailableIds] = apply_plot2_signal_profile( ...
-            signalFigure, signalAxes, legendHandle, logObj, catalog, ...
-            selectedSignalIds, t0, targetTrajectory);
-
+        save_plot2_signal_profile_state(signalFigure);
+        profiles = load_plot2_signal_profiles();
         profileIndex = find(strcmp({profiles.name}, profileName), 1);
-        profile = struct('name', profileName, 'signalIds', {selectedSignalIds});
+        lineScaleSettings = selectedLineScaleSettings( ...
+            ismember({selectedLineScaleSettings.signalId}, selectedSignalIds));
+        highlightedSignalIds = selectedHighlightedSignalIds( ...
+            ismember(selectedHighlightedSignalIds, selectedSignalIds));
         if isempty(profileIndex)
+            profile = struct('name', profileName, ...
+                'signalIds', {selectedSignalIds}, ...
+                'lineScaleSettings', {lineScaleSettings}, ...
+                'highlightedSignalIds', {highlightedSignalIds});
+            profileIndex = numel(profiles) + 1;
             profiles(end + 1) = profile;
         else
+            profile = profiles(profileIndex);
+            profile.name = profileName;
+            profile.signalIds = selectedSignalIds;
+            profile.lineScaleSettings = lineScaleSettings;
+            profile.highlightedSignalIds = highlightedSignalIds;
             profiles(profileIndex) = profile;
         end
+
+        [~, unavailableIds, legendHandle] = apply_plot2_signal_profile( ...
+            signalFigure, signalAxes, legendHandle, logObj, catalog, ...
+            selectedSignalIds, t0, targetTrajectory);
+        restore_plot2_signal_profile_state(legendHandle, profile);
+        profiles(profileIndex) = profile;
         save_plot2_signal_profiles(profiles);
         deleteButton.Enable = 'on';
         refresh_profile_list(profileName);
@@ -205,6 +295,12 @@ rebuild_tree(selectedSignalIds);
             statusLabel.Text = sprintf('Applied; %d signals are unavailable in this log', ...
                 numel(unavailableIds));
         end
+    end
+
+    function clearAllSignals(~, ~)
+        selectedSignalIds = {};
+        rebuild_tree(selectedSignalIds);
+        statusLabel.Text = 'All signals cleared';
     end
 
     function rebuild_tree(checkedIds)

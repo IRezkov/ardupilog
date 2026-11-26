@@ -34,6 +34,70 @@ classdef TestMonowheelLogSummary < matlab.unittest.TestCase
             testCase.verifyTrue(contains(reportText, 'Jump detection method'));
         end
 
+        function plotsWheelTelemetryByWheelId(testCase)
+            log = struct();
+            log.WTLM = struct( ...
+                'TimeS', [0; 1; 2; 3], ...
+                'id', [3; 4; 3; 4], ...
+                'Spd', [10; 20; 30; 40]);
+            log.WIMU = struct( ...
+                'TimeS', [0; 1; 2; 3], ...
+                'id', [3; 4; 3; 4], ...
+                'ax', [1; 2; 3; 4]);
+
+            catalog = build_plot2_signal_catalog(log, []);
+            wheelSignalId = 'Wheel3.WTLM.Spd';
+            testCase.verifyTrue(any(strcmp({catalog.id}, wheelSignalId)));
+            testCase.verifyTrue(any(strcmp({catalog.id}, 'Wheel4.WIMU.ax')));
+
+            figureHandle = figure('Visible', 'off');
+            cleanup = onCleanup(@() delete(figureHandle));
+            axesHandle = axes('Parent', figureHandle);
+            [lines, unavailableIds] = render_plot2_signal_profile( ...
+                axesHandle, log, catalog, {wheelSignalId}, 0, []);
+
+            testCase.verifyEmpty(unavailableIds);
+            testCase.verifyEqual(lines(1).XData, [0 2]);
+            testCase.verifyEqual(lines(1).YData, [10 30]);
+        end
+
+        function plotsImuFlightAssessmentSignals(testCase)
+            log = struct();
+            log.IMU = struct( ...
+                'TimeS', [0; 0.1; 0.2], ...
+                'AccX', [0; 0; 0], ...
+                'AccY', [0; 0; 0], ...
+                'AccZ', [9.81; 2; 16]);
+            log.WIMU = struct( ...
+                'TimeS', [0; 0.1; 0.2; 0.3], ...
+                'id', [1; 2; 1; 2], ...
+                'ax', [3; 30; 5; 40], ...
+                'ay', [4; 0; 0; 0], ...
+                'az', [0; 0; 12; 0]);
+
+            catalog = build_plot2_signal_catalog(log, []);
+            signalIds = { ...
+                'Derived.IMU.AccelMagnitude', ...
+                'Derived.IMU.LowAcceleration', ...
+                'Wheel1.WIMU.AccelMagnitude'};
+            for signalIndex = 1:numel(signalIds)
+                testCase.verifyTrue(any(strcmp({catalog.id}, signalIds{signalIndex})));
+            end
+
+            figureHandle = figure('Visible', 'off');
+            cleanup = onCleanup(@() delete(figureHandle));
+            axesHandle = axes('Parent', figureHandle);
+            hold(axesHandle, 'on');
+            [lines, unavailableIds] = render_plot2_signal_profile( ...
+                axesHandle, log, catalog, signalIds, 0, []);
+
+            testCase.verifyEmpty(unavailableIds);
+            testCase.verifyEqual(lines(1).YData, [9.81 2 16], 'AbsTol', 1e-10);
+            testCase.verifyEqual(lines(2).YData, [0 1 0]);
+            testCase.verifyEqual(lines(3).XData, [0 0.2], 'AbsTol', 1e-10);
+            testCase.verifyEqual(lines(3).YData, [5 13], 'AbsTol', 1e-10);
+        end
+
         function countsDistinctWheelsFromTelemetryIds(testCase)
             log = struct();
             log.WTLM = struct( ...

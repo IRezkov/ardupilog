@@ -88,6 +88,7 @@ if reuseFigures
     zoom(signalFigure, 'off');
     pan(signalFigure, 'off');
     rotate3d(signalFigure, 'off');
+    save_plot2_signal_profile_state(signalFigure);
     clf(signalFigure, 'reset');
 else
     signalFigure = figure;
@@ -95,7 +96,8 @@ else
 end
 figure(signalFigure);
 restore_saved_figure_position(signalFigure, 'SignalWindowPosition', positionPreferenceGroup);
-signalFigure.CloseRequestFcn = @(src, ~) save_figure_position(src, 'SignalWindowPosition', positionPreferenceGroup);
+signalFigure.CloseRequestFcn = @(src, ~) close_plot2_signal_figure( ...
+    src, 'SignalWindowPosition', positionPreferenceGroup);
 title([bootTimeText ' ' id]);
 signalAxes = signalFigure.CurrentAxes;
 hold(signalAxes, 'on');
@@ -116,7 +118,7 @@ if isempty(activeProfileIndex)
 end
 activeProfile = signalProfiles(activeProfileIndex);
 lgd = legend(signalAxes, 'show');
-[h, unavailableSignalIds] = apply_plot2_signal_profile( ...
+[h, unavailableSignalIds, lgd] = apply_plot2_signal_profile( ...
     signalFigure, signalAxes, lgd, log, signalCatalog, ...
     activeProfile.signalIds, t0, targetTrajectory);
 signalFigure.UserData.plot2ProfileName = activeProfile.name;
@@ -132,6 +134,7 @@ signalAxes.UserData.FixedPosition = fixedAxesPosition;
 lgd.UserData.FixedAxesPosition = fixedAxesPosition;
 lgd.UserData.FixedPosition = get(lgd, 'Position');
 lgd.Position = lgd.UserData.FixedPosition;
+restore_plot2_signal_profile_state(lgd, activeProfile);
 
 % Линии режимов и сообщения не зависят от выбранного профиля.
 modeAnnotationTimes = zeros(0, 1);

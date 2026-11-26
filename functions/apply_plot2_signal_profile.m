@@ -1,4 +1,4 @@
-function [lineHandles, unavailableIds] = apply_plot2_signal_profile( ...
+function [lineHandles, unavailableIds, legendHandle] = apply_plot2_signal_profile( ...
     signalFigure, signalAxes, legendHandle, logObj, catalog, signalIds, ...
     t0, targetTrajectory)
 %APPLY_PLOT2_SIGNAL_PROFILE Replace plotted signals and refresh legend handles.
@@ -82,6 +82,10 @@ uimenu(scaleMenu, 'Label', 'Авто: % по модулю', ...
     'Callback', @(~, ~) set_plot2_line_scale(legendHandle, 'auto'));
 uimenu(scaleMenu, 'Label', 'Выделить на передний план', ...
     'Callback', @(~, ~) bring_plot2_line_to_front(legendHandle));
+uimenu(scaleMenu, 'Label', 'Удалить', 'Separator', 'on', ...
+    'Callback', @(~, ~) delete_plot2_profile_line( ...
+        signalFigure, signalAxes, legendHandle, logObj, catalog, ...
+        t0, targetTrajectory));
 legendHandle.ContextMenu = scaleMenu;
 legendHandle.UserData.FixedPosition = fixedLegendPosition;
 if ~isempty(fixedAxesPosition)
@@ -90,6 +94,7 @@ if ~isempty(fixedAxesPosition)
 end
 
 signalFigure.UserData.plot2ProfileLines = lineHandles;
+signalFigure.UserData.plot2Legend = legendHandle;
 if isfield(signalFigure.UserData, 'cursorTool')
     cursorData = signalFigure.UserData.cursorTool;
     cursorData.axes = signalAxes;
@@ -101,6 +106,9 @@ end
 
 function set_plot2_legend_target(legendHandle)
 legendData = legendHandle.UserData;
+if isfield(legendData, 'ScaleTarget')
+    legendData = rmfield(legendData, 'ScaleTarget');
+end
 lineHandles = legendData.Lines;
 lineCount = numel(lineHandles);
 if lineCount == 0
