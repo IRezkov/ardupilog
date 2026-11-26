@@ -11,12 +11,12 @@ classdef TestMonowheelLogSummary < matlab.unittest.TestCase
         function jumpAnalysisKeepsMarkdownRowColumnsAligned(testCase)
             row = table( ...
                 {'20260820_sample.bin'}, 0, 3, {'TEST'}, {'TEST: 3s'}, ...
-                0.1, 0.2, 0.3, 2, 5, {'3, 4'}, 1, ...
+                0.1, 0.2, 0.3, 2, 5, {'3, 4'}, {'Wheel 3: 0.5 s'}, 1, ...
                 {'1 likely jump(s) (heuristic: |a| < 3.0 m/s^2)'}, {''}, ...
                 'VariableNames', {'FileName', 'StartTimeSec', 'DurationSec', ...
                 'MainMode', 'ModeSummary', 'AvgSpeedMps', 'MaxSpeedMps', ...
                 'MaxTurnRateRaw', 'WheelCount', 'WheelDistanceM', 'WheelIds', ...
-                'JumpCount', 'JumpSummary', 'ChangedParams'});
+                'WheelSlipSummary', 'JumpCount', 'JumpSummary', 'ChangedParams'});
             reportPath = [tempname '.md'];
             [reportDir, reportName, reportExt] = fileparts(reportPath);
             cleanup = onCleanup(@() delete(reportPath));
@@ -29,9 +29,10 @@ classdef TestMonowheelLogSummary < matlab.unittest.TestCase
             reportRow = reportLines{reportRowIndex};
             unescapedPipes = regexp(reportRow, '(?<!\\)\|', 'match');
 
-            testCase.verifyEqual(numel(unescapedPipes), 16);
+            testCase.verifyEqual(numel(unescapedPipes), 17);
             testCase.verifyTrue(contains(reportRow, '\|a\|'));
             testCase.verifyTrue(contains(reportText, 'Jump detection method'));
+            testCase.verifyTrue(contains(reportText, 'Wheel slip detection method'));
         end
 
         function plotsWheelTelemetryByWheelId(testCase)
@@ -109,6 +110,37 @@ classdef TestMonowheelLogSummary < matlab.unittest.TestCase
             testCase.verifyEqual(info.WheelCount, 2);
             testCase.verifyEqual(info.WheelDistanceM, 5);
             testCase.verifyEqual(info.WheelIds, '3, 4');
+        end
+
+        function findsSustainedWheelSpeedImbalance(testCase)
+            time = (0:0.1:1.4)';
+            wheel3Speed = 250 * ones(size(time));
+            wheel3Speed(3:8) = 10;
+            wheel3Speed(11:13) = 10;
+            wheel4Speed = 300 * ones(size(time));
+            log.WTLM = struct( ...
+                'TimeS', [time; time], ...
+                'id', [3 * ones(size(time)); 4 * ones(size(time))], ...
+                'Spd', [wheel3Speed; wheel4Speed]);
+
+            info = summarize_wheel_slip(log);
+
+            testCase.verifyEqual(info.WheelIds, 3);
+            testCase.verifyEqual(info.DurationsSec, 0.5, 'AbsTol', 1e-10);
+            testCase.verifyEqual(info.EpisodeCounts, 1);
+            testCase.verifyTrue(contains(info.Summary, 'Wheel 3: 0.5 s'));
+        end
+
+        function marksWheelSlipUnassessedWithoutMultipleWheels(testCase)
+            log.WTLM = struct( ...
+                'TimeS', [0; 1], ...
+                'id', [3; 3], ...
+                'Spd', [0; 250]);
+
+            info = summarize_wheel_slip(log);
+
+            testCase.verifyEmpty(info.WheelIds);
+            testCase.verifyTrue(startsWith(info.Summary, 'Not assessed'));
         end
 
         function leavesWheelCountUnknownWithoutWheelTelemetry(testCase)

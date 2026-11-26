@@ -17,9 +17,10 @@ if ~isstruct(lineData) || ~isfield(lineData, 'SignalId')
 end
 signalId = lineData.SignalId;
 
-save_plot2_signal_profile_state(signalFigure);
+fields = get_plot2_signal_panel_fields(signalFigure, signalAxes);
+save_plot2_signal_profile_state(signalFigure, true, signalAxes);
 profiles = load_plot2_signal_profiles();
-profileName = signalFigure.UserData.plot2ProfileName;
+profileName = signalFigure.UserData.(fields.name);
 profileIndex = find(strcmp({profiles.name}, profileName), 1);
 if isempty(profileIndex)
     error('plot2:SignalProfileMissing', ...
@@ -37,10 +38,10 @@ profile.highlightedSignalIds(strcmp( ...
     signalFigure, signalAxes, legendHandle, logObj, catalog, ...
     profile.signalIds, t0, targetTrajectory);
 restore_plot2_signal_profile_state(legendHandle, profile);
-signalFigure.UserData.plot2ProfileName = profile.name;
-signalFigure.UserData.plot2ProfileSignals = profile.signalIds;
-signalFigure.UserData.plot2UnavailableSignals = unavailableIds;
-signalFigure.UserData.plot2Legend = legendHandle;
+signalFigure.UserData.(fields.name) = profile.name;
+signalFigure.UserData.(fields.signals) = profile.signalIds;
+signalFigure.UserData.(fields.unavailable) = unavailableIds;
+signalFigure.UserData.(fields.legend) = legendHandle;
 profiles(profileIndex) = profile;
 save_plot2_signal_profiles(profiles);
 end

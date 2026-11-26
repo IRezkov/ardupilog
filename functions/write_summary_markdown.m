@@ -16,8 +16,8 @@ function write_summary_markdown(summaryTable, paramTable, outDir, filename, allS
     fprintf(fid, 'Generated for %d log(s).\n\n', height(summaryTable));
 
     fprintf(fid, '## Overview\n\n');
-    fprintf(fid, '| Date | File | Start (s) | Duration (s) | Main mode | Mode summary | Avg speed (m/s) | Max speed (m/s) | Max turn rate | Wheel count | Wheel distance (m) | Wheel IDs | Jump count | Jump analysis | Params |\n');
-    fprintf(fid, '| --- | --- | ---: | ---: | --- | --- | ---: | ---: | ---: | ---: | ---: | --- | ---: | --- | --- |\n');
+    fprintf(fid, '| Date | File | Start (s) | Duration (s) | Main mode | Mode summary | Avg speed (m/s) | Max speed (m/s) | Max turn rate | Wheel count | Wheel distance (m) | Wheel IDs | Wheel slip (wheel: duration) | Jump count | Jump analysis | Params |\n');
+    fprintf(fid, '| --- | --- | ---: | ---: | --- | --- | ---: | ---: | ---: | ---: | ---: | --- | --- | ---: | --- | --- |\n');
 
     for i = 1:height(summaryTable)
         row = summaryTable(i, :);
@@ -33,13 +33,15 @@ function write_summary_markdown(summaryTable, paramTable, outDir, filename, allS
         wheelCountVal = format_numeric_markdown(row.WheelCount);
         wheelDistanceVal = format_numeric_markdown(row.WheelDistanceM);
         wheelIds = safe_markdown_cell(row.WheelIds);
+        wheelSlipVal = wheel_slip_text(row);
         jumpCountVal = format_numeric_markdown(row.JumpCount);
         jumpSummary = safe_markdown_cell(row.JumpSummary);
         paramsText = safe_markdown_cell(row.ChangedParams);
 
-        fprintf(fid, '| %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s |\n', ...
+        fprintf(fid, '| %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s |\n', ...
             dateValue, fileName, startVal, durationVal, modeName, modeSummary, avgVal, maxVal, ...
-            turnVal, wheelCountVal, wheelDistanceVal, wheelIds, jumpCountVal, jumpSummary, paramsText);
+            turnVal, wheelCountVal, wheelDistanceVal, wheelIds, wheelSlipVal, ...
+            jumpCountVal, jumpSummary, paramsText);
     end
 
     fprintf(fid, '\n## Jump detection method\n\n');
@@ -51,6 +53,13 @@ function write_summary_markdown(summaryTable, paramTable, outDir, filename, allS
     fprintf(fid, ['This can miss jumps without both phases and can flag hard bumps or ' ...
         'other impacts. If usable IMU data is absent, the result is not assessed; ' ...
         'no detections do not prove that no jump occurred.\n']);
+
+    fprintf(fid, '\n## Wheel slip detection method\n\n');
+    fprintf(fid, ['This heuristic flags a wheel when its WTLM.Spd is at most 20 while ' ...
+        'another wheel is at least 200, continuously for 0.5 s or longer. Durations ' ...
+        'are summed per wheel; values use the raw WTLM.Spd units because the logs do ' ...
+        'not declare a unit. It only detects a wheel nearly stopped while another ' ...
+        'wheel is rotating quickly; it cannot detect all wheels slipping together.\n']);
 
     fprintf(fid, '\n## Changed parameters\n\n');
     if isempty(paramTable)
@@ -70,8 +79,8 @@ function write_summary_markdown(summaryTable, paramTable, outDir, filename, allS
 
     if ~isempty(allSummaryTable)
         fprintf(fid, '\n## All logs (before filtering)\n\n');
-        fprintf(fid, '| Date | File | Start (s) | Duration (s) | Main mode | Mode summary | Avg speed (m/s) | Max speed (m/s) | Max turn rate | Wheel count | Wheel distance (m) | Wheel IDs | Jump count | Jump analysis | Params |\n');
-        fprintf(fid, '| --- | --- | ---: | ---: | --- | --- | ---: | ---: | ---: | ---: | ---: | --- | ---: | --- | --- |\n');
+        fprintf(fid, '| Date | File | Start (s) | Duration (s) | Main mode | Mode summary | Avg speed (m/s) | Max speed (m/s) | Max turn rate | Wheel count | Wheel distance (m) | Wheel IDs | Wheel slip (wheel: duration) | Jump count | Jump analysis | Params |\n');
+        fprintf(fid, '| --- | --- | ---: | ---: | --- | --- | ---: | ---: | ---: | ---: | ---: | --- | --- | ---: | --- | --- |\n');
 
         for i = 1:height(allSummaryTable)
             row = allSummaryTable(i, :);
@@ -87,17 +96,26 @@ function write_summary_markdown(summaryTable, paramTable, outDir, filename, allS
             wheelCountVal = format_numeric_markdown(row.WheelCount);
             wheelDistanceVal = format_numeric_markdown(row.WheelDistanceM);
             wheelIds = safe_markdown_cell(row.WheelIds);
+            wheelSlipVal = wheel_slip_text(row);
             jumpCountVal = format_numeric_markdown(row.JumpCount);
             jumpSummary = safe_markdown_cell(row.JumpSummary);
             paramsText = safe_markdown_cell(row.ChangedParams);
 
-            fprintf(fid, '| %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s |\n', ...
+            fprintf(fid, '| %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s |\n', ...
                 dateValue, fileName, startVal, durationVal, modeName, modeSummary, avgVal, maxVal, ...
-                turnVal, wheelCountVal, wheelDistanceVal, wheelIds, jumpCountVal, jumpSummary, paramsText);
+                turnVal, wheelCountVal, wheelDistanceVal, wheelIds, wheelSlipVal, ...
+                jumpCountVal, jumpSummary, paramsText);
         end
     end
 
     fclose(fid);
+end
+
+function value = wheel_slip_text(row)
+value = 'Not assessed';
+if ismember('WheelSlipSummary', row.Properties.VariableNames)
+    value = safe_markdown_cell(row.WheelSlipSummary);
+end
 end
 
 function dateValue = date_from_filename(fileName)

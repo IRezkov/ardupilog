@@ -33,6 +33,9 @@ function rec = summarize_single_log(log, fullPath)
     rec.WheelDistanceM = wheelInfo.WheelDistanceM;
     rec.WheelIds = wheelInfo.WheelIds;
 
+    wheelSlipInfo = summarize_wheel_slip(log);
+    rec.WheelSlipSummary = wheelSlipInfo.Summary;
+
     [rec.JumpCount, rec.JumpSummary] = detect_log_jumps(log);
 
     modeInfo = summarize_modes(log);

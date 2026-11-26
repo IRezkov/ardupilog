@@ -13,12 +13,17 @@ function set_cursor_from_click(signalFigure)
 
     clickedObject = hittest(signalFigure);
     clickedAxes = ancestor(clickedObject, 'axes');
-    if isempty(clickedAxes) || ~isequal(clickedAxes, data.axes)
+    isSignalAxes = isequal(clickedAxes, data.axes);
+    if isfield(data, 'comparisonAxes')
+        isSignalAxes = isSignalAxes || ...
+            isequal(clickedAxes, data.comparisonAxes);
+    end
+    if isempty(clickedAxes) || ~isSignalAxes
         return;
     end
 
     figurePoint = get(signalFigure, 'CurrentPoint');
-    axesRectangle = getpixelposition(data.axes, true);
+    axesRectangle = getpixelposition(clickedAxes, true);
     insideAxes = figurePoint(1) >= axesRectangle(1) && ...
         figurePoint(1) <= axesRectangle(1) + axesRectangle(3) && ...
         figurePoint(2) >= axesRectangle(2) && ...
@@ -27,6 +32,6 @@ function set_cursor_from_click(signalFigure)
         return;
     end
 
-    point = get(data.axes, 'CurrentPoint');
+    point = get(clickedAxes, 'CurrentPoint');
     update_cursor_tool(signalFigure, point(1, 1));
 end

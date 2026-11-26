@@ -122,6 +122,7 @@
       <file>${PROJECT_ROOT}\functions\format_numeric_markdown.m</file>
       <file>${PROJECT_ROOT}\functions\get_field_value.m</file>
       <file>${PROJECT_ROOT}\functions\get_plot2_log_time_bounds.m</file>
+      <file>${PROJECT_ROOT}\functions\get_plot2_signal_panel_fields.m</file>
       <file>${PROJECT_ROOT}\functions\has_field_value.m</file>
       <file>${PROJECT_ROOT}\functions\highlightLine.m</file>
       <file>${PROJECT_ROOT}\functions\is_control_relevant_param.m</file>
@@ -133,6 +134,7 @@
       <file>${PROJECT_ROOT}\functions\normalize_param_name.m</file>
       <file>${PROJECT_ROOT}\functions\onRulerClean.m</file>
       <file>${PROJECT_ROOT}\functions\open_plot2_signal_profile_editor.m</file>
+      <file>${PROJECT_ROOT}\functions\open_plot2_comparison_figure.m</file>
       <file>${PROJECT_ROOT}\functions\parse_datetime_as_string.m</file>
       <file>${PROJECT_ROOT}\functions\parse_datetime_from_filename.m</file>
       <file>${PROJECT_ROOT}\functions\read_plot2_actuator_signal.m</file>
@@ -150,10 +152,12 @@
       <file>${PROJECT_ROOT}\functions\set_cursor_from_click.m</file>
       <file>${PROJECT_ROOT}\functions\set_value_in_map.m</file>
       <file>${PROJECT_ROOT}\functions\sort_bin_files_by_start_time.m</file>
+      <file>${PROJECT_ROOT}\functions\start_plot2_cursor_drag.m</file>
       <file>${PROJECT_ROOT}\functions\set_plot2_speed_unit.m</file>
       <file>${PROJECT_ROOT}\functions\set_plot2_line_scale.m</file>
       <file>${PROJECT_ROOT}\functions\speed_unit_label.m</file>
       <file>${PROJECT_ROOT}\functions\summarize_wheel_telemetry.m</file>
+      <file>${PROJECT_ROOT}\functions\summarize_wheel_slip.m</file>
       <file>${PROJECT_ROOT}\functions\summarize_log.m</file>
       <file>${PROJECT_ROOT}\functions\summarize_max_throttle_out_from_rec.m</file>
       <file>${PROJECT_ROOT}\functions\summarize_modes.m</file>

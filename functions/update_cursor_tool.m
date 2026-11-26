@@ -17,51 +17,36 @@ function update_cursor_tool(signalFigure, requestedTime)
     if nargin > 1 && isfinite(requestedTime)
         timeValue = requestedTime;
     else
-        point = get(data.axes, 'CurrentPoint');
+        activeAxes = data.axes;
+        if data.dragging && isfield(data, 'activeAxes') && ...
+                isgraphics(data.activeAxes)
+            activeAxes = data.activeAxes;
+        end
+        point = get(activeAxes, 'CurrentPoint');
         timeValue = point(1, 1);
     end
     if ~isfinite(timeValue)
         return;
     end
 
-    if isempty(data.cursorLine) || ~isvalid(data.cursorLine)
-        data.cursorLine = xline(data.axes, timeValue, '--k', 'HandleVisibility', 'off');
-    else
-        data.cursorLine.Value = timeValue;
+    [data.cursorLine, data.lastLegendUpdate] = update_cursor_panel( ...
+        data.axes, data.legend, data.cursorLine, timeValue, ...
+        data.lastLegendUpdate, signalFigure);
+    if isfield(data, 'comparisonAxes') && isgraphics(data.comparisonAxes) && ...
+            isfield(data, 'comparisonLegend') && ...
+            isgraphics(data.comparisonLegend)
+        if ~isfield(data, 'comparisonCursorLine')
+            data.comparisonCursorLine = gobjects(0);
+        end
+        if ~isfield(data, 'comparisonLastLegendUpdate')
+            data.comparisonLastLegendUpdate = -Inf;
+        end
+        [data.comparisonCursorLine, data.comparisonLastLegendUpdate] = ...
+            update_cursor_panel(data.comparisonAxes, data.comparisonLegend, ...
+                data.comparisonCursorLine, timeValue, ...
+                data.comparisonLastLegendUpdate, signalFigure);
     end
     drawnow expose;
-
-    lines = data.legend.UserData.Lines;
-    baseNames = data.legend.UserData.BaseNames;
-    if isfield(data.legend.UserData, 'DisplayNames')
-        baseNames = data.legend.UserData.DisplayNames;
-    end
-    currentClock = now * 86400;
-    if currentClock - data.lastLegendUpdate >= 0.15
-        legendStrings = baseNames;
-        for i = 1:numel(lines)
-            lineHandle = lines(i);
-            if ~isvalid(lineHandle)
-                continue;
-            end
-            [xData, yData] = get_cached_sorted_line_data(lineHandle);
-            if numel(xData) < 2
-                continue;
-            end
-            currentValue = interp1(xData, yData, timeValue, 'linear', NaN);
-            if isfinite(currentValue)
-                legendStrings{i} = sprintf('%s = %.3f', baseNames{i}, currentValue);
-            end
-        end
-        data.legend.String = legendStrings;
-        if isfield(data.legend.UserData, 'FixedAxesPosition')
-            data.axes.Position = data.legend.UserData.FixedAxesPosition;
-        end
-        if isfield(data.legend.UserData, 'FixedPosition')
-            data.legend.Position = data.legend.UserData.FixedPosition;
-        end
-        data.lastLegendUpdate = currentClock;
-    end
 
     if is_target_active_at_time(signalFigure.UserData, timeValue) && ...
             isfield(signalFigure.UserData, 'targetTrajectory') && ...
@@ -89,6 +74,51 @@ function update_cursor_tool(signalFigure, requestedTime)
 
     data.currentTime = timeValue;
     signalFigure.UserData.cursorTool = data;
+end
+
+function [cursorLine, lastLegendUpdate] = update_cursor_panel( ...
+    signalAxes, legendHandle, cursorLine, timeValue, lastLegendUpdate, signalFigure)
+if isempty(cursorLine) || ~isgraphics(cursorLine)
+    cursorLine = xline(signalAxes, timeValue, '--k', ...
+        'HandleVisibility', 'off');
+else
+    cursorLine.Value = timeValue;
+end
+cursorLine.Visible = 'on';
+cursorLine.ButtonDownFcn = ...
+    @(lineHandle, ~) start_plot2_cursor_drag(lineHandle, signalFigure);
+
+lines = legendHandle.UserData.Lines;
+baseNames = legendHandle.UserData.BaseNames;
+if isfield(legendHandle.UserData, 'DisplayNames')
+    baseNames = legendHandle.UserData.DisplayNames;
+end
+currentClock = now * 86400;
+if currentClock - lastLegendUpdate >= 0.15
+    legendStrings = baseNames;
+    for i = 1:numel(lines)
+        lineHandle = lines(i);
+        if ~isgraphics(lineHandle)
+            continue;
+        end
+        [xData, yData] = get_cached_sorted_line_data(lineHandle);
+        if numel(xData) < 2
+            continue;
+        end
+        currentValue = interp1(xData, yData, timeValue, 'linear', NaN);
+        if isfinite(currentValue)
+            legendStrings{i} = sprintf('%s = %.3f', baseNames{i}, currentValue);
+        end
+    end
+    legendHandle.String = legendStrings;
+    if isfield(legendHandle.UserData, 'FixedAxesPosition')
+        signalAxes.Position = legendHandle.UserData.FixedAxesPosition;
+    end
+    if isfield(legendHandle.UserData, 'FixedPosition')
+        legendHandle.Position = legendHandle.UserData.FixedPosition;
+    end
+    lastLegendUpdate = currentClock;
+end
 end
 
 function [xData, yData] = get_cached_sorted_line_data(lineHandle)
@@ -492,6 +522,10 @@ function deactivate_cursor_tool(signalFigure)
     end
     if ~isempty(data.cursorLine) && isvalid(data.cursorLine)
         data.cursorLine.Visible = 'off';
+    end
+    if isfield(data, 'comparisonCursorLine') && ...
+            isgraphics(data.comparisonCursorLine)
+        data.comparisonCursorLine.Visible = 'off';
     end
 end
 

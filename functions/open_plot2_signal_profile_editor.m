@@ -7,9 +7,11 @@ if ~isempty(activeEditor) && isvalid(activeEditor)
     delete(activeEditor);
 end
 
+panelFields = get_plot2_signal_panel_fields(signalFigure, signalAxes);
 currentPlotState = [];
 if ~isempty(signalFigure) && isgraphics(signalFigure)
-    currentPlotState = save_plot2_signal_profile_state(signalFigure, false);
+    currentPlotState = save_plot2_signal_profile_state( ...
+        signalFigure, false, signalAxes);
 end
 profiles = load_plot2_signal_profiles();
 profileNames = {profiles.name};
@@ -30,14 +32,14 @@ hasCurrentPlotSignals = false;
 currentPlotSignals = {};
 if ~isempty(signalFigure) && isvalid(signalFigure) && ...
         isstruct(signalFigure.UserData)
-    if isfield(signalFigure.UserData, 'plot2ProfileName')
-        currentProfileName = signalFigure.UserData.plot2ProfileName;
+    if isfield(signalFigure.UserData, panelFields.name)
+        currentProfileName = signalFigure.UserData.(panelFields.name);
         if isstring(currentProfileName) && isscalar(currentProfileName)
             currentProfileName = char(currentProfileName);
         end
     end
-    if isfield(signalFigure.UserData, 'plot2ProfileSignals')
-        currentPlotSignals = signalFigure.UserData.plot2ProfileSignals;
+    if isfield(signalFigure.UserData, panelFields.signals)
+        currentPlotSignals = signalFigure.UserData.(panelFields.signals);
         hasCurrentPlotSignals = true;
     end
 end
@@ -142,7 +144,8 @@ rebuild_tree(selectedSignalIds);
             return;
         end
 
-        plotProfile = save_plot2_signal_profile_state(signalFigure, false);
+        plotProfile = save_plot2_signal_profile_state( ...
+            signalFigure, false, signalAxes);
         if isempty(plotProfile)
             uialert(activeEditor, 'The current plot configuration is unavailable.', ...
                 'Load from plot');
@@ -175,7 +178,7 @@ rebuild_tree(selectedSignalIds);
         end
 
         if ~isempty(signalFigure) && isgraphics(signalFigure)
-            save_plot2_signal_profile_state(signalFigure);
+            save_plot2_signal_profile_state(signalFigure, true, signalAxes);
         end
         profiles = load_plot2_signal_profiles();
         profileIndex = find(strcmp({profiles.name}, profileName), 1);
@@ -253,7 +256,7 @@ rebuild_tree(selectedSignalIds);
             return;
         end
 
-        save_plot2_signal_profile_state(signalFigure);
+        save_plot2_signal_profile_state(signalFigure, true, signalAxes);
         profiles = load_plot2_signal_profiles();
         profileIndex = find(strcmp({profiles.name}, profileName), 1);
         lineScaleSettings = selectedLineScaleSettings( ...
@@ -286,9 +289,9 @@ rebuild_tree(selectedSignalIds);
         refresh_profile_list(profileName);
         setpref('MissionPlannerPlot2', 'ActiveSignalProfile', profileName);
 
-        signalFigure.UserData.plot2ProfileName = profileName;
-        signalFigure.UserData.plot2ProfileSignals = selectedSignalIds;
-        signalFigure.UserData.plot2UnavailableSignals = unavailableIds;
+        signalFigure.UserData.(panelFields.name) = profileName;
+        signalFigure.UserData.(panelFields.signals) = selectedSignalIds;
+        signalFigure.UserData.(panelFields.unavailable) = unavailableIds;
         if isempty(unavailableIds)
             statusLabel.Text = sprintf('Applied %d signals', numel(selectedSignalIds));
         else

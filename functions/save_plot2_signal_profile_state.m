@@ -1,17 +1,24 @@
-function profile = save_plot2_signal_profile_state(signalFigure, persistState)
+function profile = save_plot2_signal_profile_state( ...
+    signalFigure, persistState, signalAxes)
 %SAVE_PLOT2_SIGNAL_PROFILE_STATE Capture profile scales and highlights.
 
 if nargin < 2
     persistState = true;
 end
+if nargin < 3
+    signalAxes = [];
+end
 profile = [];
 if isempty(signalFigure) || ~isgraphics(signalFigure) || ...
-        ~isstruct(signalFigure.UserData) || ...
-        ~isfield(signalFigure.UserData, 'plot2ProfileName')
+        ~isstruct(signalFigure.UserData)
+    return;
+end
+fields = get_plot2_signal_panel_fields(signalFigure, signalAxes);
+if ~isfield(signalFigure.UserData, fields.name)
     return;
 end
 
-profileName = signalFigure.UserData.plot2ProfileName;
+profileName = signalFigure.UserData.(fields.name);
 if isstring(profileName) && isscalar(profileName)
     profileName = char(profileName);
 end
@@ -23,8 +30,8 @@ profiles = load_plot2_signal_profiles();
 profileIndex = find(strcmp({profiles.name}, profileName), 1);
 if isempty(profileIndex)
     signalIds = {};
-    if isfield(signalFigure.UserData, 'plot2ProfileSignals')
-        signalIds = signalFigure.UserData.plot2ProfileSignals;
+    if isfield(signalFigure.UserData, fields.signals)
+        signalIds = signalFigure.UserData.(fields.signals);
         if isstring(signalIds)
             signalIds = cellstr(signalIds(:));
         elseif ischar(signalIds)
@@ -42,8 +49,8 @@ if isempty(profileIndex)
 else
     profile = profiles(profileIndex);
 end
-if isfield(signalFigure.UserData, 'plot2ProfileSignals')
-    signalIds = signalFigure.UserData.plot2ProfileSignals;
+if isfield(signalFigure.UserData, fields.signals)
+    signalIds = signalFigure.UserData.(fields.signals);
     if isstring(signalIds)
         signalIds = cellstr(signalIds(:));
     elseif ischar(signalIds)
@@ -59,8 +66,8 @@ lineScaleSettings = lineScaleSettings( ...
 visibleSignalIds = {};
 
 lineHandles = gobjects(0);
-if isfield(signalFigure.UserData, 'plot2ProfileLines')
-    lineHandles = signalFigure.UserData.plot2ProfileLines;
+if isfield(signalFigure.UserData, fields.lines)
+    lineHandles = signalFigure.UserData.(fields.lines);
     lineHandles = lineHandles(isgraphics(lineHandles));
 end
 for lineIndex = 1:numel(lineHandles)
@@ -106,9 +113,9 @@ previousHighlights = previousHighlights( ...
 hiddenHighlights = previousHighlights( ...
     ~ismember(previousHighlights, visibleSignalIds));
 currentHighlights = {};
-if isfield(signalFigure.UserData, 'plot2Legend') && ...
-        isgraphics(signalFigure.UserData.plot2Legend)
-    legendData = signalFigure.UserData.plot2Legend.UserData;
+if isfield(signalFigure.UserData, fields.legend) && ...
+        isgraphics(signalFigure.UserData.(fields.legend))
+    legendData = signalFigure.UserData.(fields.legend).UserData;
     if isstruct(legendData) && isfield(legendData, 'Highlighted')
         highlightedLines = legendData.Highlighted;
         highlightedLines = highlightedLines(isgraphics(highlightedLines));

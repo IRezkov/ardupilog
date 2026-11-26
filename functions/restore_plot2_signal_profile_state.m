@@ -72,7 +72,9 @@ legendHandle.UserData = legendData;
 figureHandle = ancestor(legendHandle, 'figure');
 if isgraphics(figureHandle) && isstruct(figureHandle.UserData)
     figureData = figureHandle.UserData;
-    figureData.plot2Legend = legendHandle;
+    axesHandle = ancestor(legendHandle, 'axes');
+    fields = get_plot2_signal_panel_fields(figureHandle, axesHandle);
+    figureData.(fields.legend) = legendHandle;
     figureHandle.UserData = figureData;
 end
 end

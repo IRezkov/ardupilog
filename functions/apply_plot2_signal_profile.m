@@ -3,6 +3,7 @@ function [lineHandles, unavailableIds, legendHandle] = apply_plot2_signal_profil
     t0, targetTrajectory)
 %APPLY_PLOT2_SIGNAL_PROFILE Replace plotted signals and refresh legend handles.
 
+fields = get_plot2_signal_panel_fields(signalFigure, signalAxes);
 fixedLegendPosition = [];
 fixedAxesPosition = [];
 if isgraphics(legendHandle)
@@ -18,8 +19,8 @@ if isempty(fixedAxesPosition) && isfield(signalAxes.UserData, 'FixedPosition')
     fixedAxesPosition = signalAxes.UserData.FixedPosition;
 end
 
-if isfield(signalFigure.UserData, 'plot2ProfileLines')
-    oldLines = signalFigure.UserData.plot2ProfileLines;
+if isfield(signalFigure.UserData, fields.lines)
+    oldLines = signalFigure.UserData.(fields.lines);
     oldLines = oldLines(isgraphics(oldLines));
     if ~isempty(oldLines)
         delete(oldLines);
@@ -93,12 +94,18 @@ if ~isempty(fixedAxesPosition)
     legendHandle.UserData.FixedAxesPosition = fixedAxesPosition;
 end
 
-signalFigure.UserData.plot2ProfileLines = lineHandles;
-signalFigure.UserData.plot2Legend = legendHandle;
+signalFigure.UserData.(fields.lines) = lineHandles;
+signalFigure.UserData.(fields.legend) = legendHandle;
 if isfield(signalFigure.UserData, 'cursorTool')
     cursorData = signalFigure.UserData.cursorTool;
-    cursorData.axes = signalAxes;
-    cursorData.legend = legendHandle;
+    if isfield(signalFigure.UserData, 'plot2ComparisonAxes') && ...
+            isequal(signalFigure.UserData.plot2ComparisonAxes, signalAxes)
+        cursorData.comparisonAxes = signalAxes;
+        cursorData.comparisonLegend = legendHandle;
+    else
+        cursorData.axes = signalAxes;
+        cursorData.legend = legendHandle;
+    end
     cursorData.lastLegendUpdate = -Inf;
     signalFigure.UserData.cursorTool = cursorData;
 end
